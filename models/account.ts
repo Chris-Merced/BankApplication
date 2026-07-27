@@ -2,11 +2,12 @@ export type AccountType = 'CHECKING' | 'SAVINGS';
 
 export const ACCOUNT_TYPES: AccountType[] = ['CHECKING', 'SAVINGS'];
 
+//TODO: Implement forced integer sanitization for cents instead of allowing float
 export class Account {
   account_id: number;
   user_id: number;
   account_type: AccountType;
-  balance: number;
+  balance: number; // stored in cents
   created_at: string;
 
   constructor(id: number, userId: number, accountType: AccountType, balance: number = 0) {

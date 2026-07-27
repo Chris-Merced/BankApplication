@@ -2,9 +2,11 @@ import { Request, Response } from 'express';
 import AccountService from '../services/AccountService';
 import { AccountType, ACCOUNT_TYPES } from '../models/account';
 
+
 function isAccountType(value: unknown): value is AccountType {
   return typeof value === 'string' && (ACCOUNT_TYPES as string[]).includes(value);
 }
+
 
 /**
  * Creates an account for an existing user.
@@ -59,6 +61,7 @@ function getAccount(req: Request, res: Response): void {
  * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
  * @param res - Returns the updated account with status 200, or an error with status 400.
  */
+// TODO: Distinguish 404 (account not found) from 400 (bad amount) via custom error classes
 function deposit(req: Request, res: Response): void {
   try {
     const accountId = Number(req.params.id);
