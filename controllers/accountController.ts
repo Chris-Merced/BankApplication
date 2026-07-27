@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import AccountService from '../services/AccountService';
+import { AccountType, ACCOUNT_TYPES } from '../models/account';
+
+function isAccountType(value: unknown): value is AccountType {
+  return typeof value === 'string' && (ACCOUNT_TYPES as string[]).includes(value);
+}
 
 function createAccount(req: Request, res: Response): void {
   try {
@@ -8,7 +13,12 @@ function createAccount(req: Request, res: Response): void {
       res.status(400).json({ error: 'userId and accountType are required' });
       return;
     }
-    const account = AccountService.createAccount(Number(userId), accountType);
+    const normalizedType = typeof accountType === 'string' ? accountType.toUpperCase() : accountType;
+    if (!isAccountType(normalizedType)) {
+      res.status(400).json({ error: `accountType must be one of: ${ACCOUNT_TYPES.join(', ')}` });
+      return;
+    }
+    const account = AccountService.createAccount(Number(userId), normalizedType);
     res.status(201).json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });

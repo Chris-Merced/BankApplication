@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Account = void 0;
+exports.Account = exports.ACCOUNT_TYPES = void 0;
+exports.ACCOUNT_TYPES = ['CHECKING', 'SAVINGS'];
 class Account {
     constructor(id, userId, accountType, balance = 0) {
         this.account_id = id;

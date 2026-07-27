@@ -14,6 +14,7 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
+//Repository routes
 app.use('/api/accounts', accountRoutes_1.default);
 app.listen(PORT, () => {
     console.log(`Server listening on http://localhost:${PORT}`);

@@ -1,9 +1,9 @@
-import { Account } from '../models/account';
+import { Account, AccountType } from '../models/account';
 
 const accounts: Account[] = [];
 let nextAccountId = 1;
 
-function create(userId: number, accountType: string): Account {
+function create(userId: number, accountType: AccountType): Account {
   const account = new Account(nextAccountId++, userId, accountType);
   accounts.push(account);
   return account;

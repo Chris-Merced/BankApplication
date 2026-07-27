@@ -4,6 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const AccountService_1 = __importDefault(require("../services/AccountService"));
+const account_1 = require("../models/account");
+function isAccountType(value) {
+    return typeof value === 'string' && account_1.ACCOUNT_TYPES.includes(value);
+}
 function createAccount(req, res) {
     try {
         const { userId, accountType } = req.body;
@@ -11,7 +15,12 @@ function createAccount(req, res) {
             res.status(400).json({ error: 'userId and accountType are required' });
             return;
         }
-        const account = AccountService_1.default.createAccount(Number(userId), accountType);
+        const normalizedType = typeof accountType === 'string' ? accountType.toUpperCase() : accountType;
+        if (!isAccountType(normalizedType)) {
+            res.status(400).json({ error: `accountType must be one of: ${account_1.ACCOUNT_TYPES.join(', ')}` });
+            return;
+        }
+        const account = AccountService_1.default.createAccount(Number(userId), normalizedType);
         res.status(201).json(account);
     }
     catch (err) {

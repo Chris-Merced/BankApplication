@@ -1,10 +1,10 @@
 import userRepository from '../repositories/userRepository';
 import accountRepository from '../repositories/accountRepository';
 import transactionRepository from '../repositories/transactionRepository';
-import { Account } from '../models/account';
+import { Account, AccountType } from '../models/account';
 import { Transaction } from '../models/transaction';
 
-function createAccount(userId: number, accountType: string): Account {
+function createAccount(userId: number, accountType: AccountType): Account {
   const user = userRepository.findById(userId);
   if (!user) {
     throw new Error('User not found');
