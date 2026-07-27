@@ -14,7 +14,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-//Repository routes
 app.use('/api/accounts', accountRoutes);
 
 app.listen(PORT, () => {

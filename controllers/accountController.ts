@@ -6,6 +6,14 @@ function isAccountType(value: unknown): value is AccountType {
   return typeof value === 'string' && (ACCOUNT_TYPES as string[]).includes(value);
 }
 
+/**
+ * Creates an account for an existing user.
+ *
+ * `POST /api/accounts`
+ *
+ * @param req - Express request with `userId` and `accountType` in the JSON body.
+ * @param res - Returns the created account with status 201, or an error with status 400.
+ */
 function createAccount(req: Request, res: Response): void {
   try {
     const { userId, accountType } = req.body;
@@ -25,6 +33,14 @@ function createAccount(req: Request, res: Response): void {
   }
 }
 
+/**
+ * Retrieves an account by its ID.
+ *
+ * `GET /api/accounts/:id`
+ *
+ * @param req - Express request with the account ID in `params.id`.
+ * @param res - Returns the account with status 200, or an error with status 404.
+ */
 function getAccount(req: Request, res: Response): void {
   try {
     const accountId = Number(req.params.id);
@@ -35,6 +51,14 @@ function getAccount(req: Request, res: Response): void {
   }
 }
 
+/**
+ * Deposits funds into an account.
+ *
+ * `POST /api/accounts/:id/deposit`
+ *
+ * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
+ * @param res - Returns the updated account with status 200, or an error with status 400.
+ */
 function deposit(req: Request, res: Response): void {
   try {
     const accountId = Number(req.params.id);
@@ -46,6 +70,14 @@ function deposit(req: Request, res: Response): void {
   }
 }
 
+/**
+ * Withdraws funds from an account.
+ *
+ * `POST /api/accounts/:id/withdraw`
+ *
+ * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
+ * @param res - Returns the updated account with status 200, or an error with status 400.
+ */
 function withdraw(req: Request, res: Response): void {
   try {
     const accountId = Number(req.params.id);
@@ -57,6 +89,14 @@ function withdraw(req: Request, res: Response): void {
   }
 }
 
+/**
+ * Retrieves the transaction history for an account.
+ *
+ * `GET /api/accounts/:id/transactions`
+ *
+ * @param req - Express request with the account ID in `params.id`.
+ * @param res - Returns the transaction list with status 200, or an error with status 404.
+ */
 function getTransactions(req: Request, res: Response): void {
   try {
     const accountId = Number(req.params.id);
