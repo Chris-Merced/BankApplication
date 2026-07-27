@@ -1,8 +1,10 @@
-const userRepository = require('../repositories/userRepository');
-const accountRepository = require('../repositories/accountRepository');
-const transactionRepository = require('../repositories/transactionRepository');
+import userRepository from '../repositories/userRepository';
+import accountRepository from '../repositories/accountRepository';
+import transactionRepository from '../repositories/transactionRepository';
+import { Account } from '../models/account';
+import { Transaction } from '../models/transaction';
 
-function createAccount(userId, accountType) {
+function createAccount(userId: number, accountType: string): Account {
   const user = userRepository.findById(userId);
   if (!user) {
     throw new Error('User not found');
@@ -10,7 +12,7 @@ function createAccount(userId, accountType) {
   return accountRepository.create(userId, accountType);
 }
 
-function getAccount(accountId) {
+function getAccount(accountId: number): Account {
   const account = accountRepository.findById(accountId);
   if (!account) {
     throw new Error('Account not found');
@@ -18,7 +20,7 @@ function getAccount(accountId) {
   return account;
 }
 
-function deposit(accountId, amount) {
+function deposit(accountId: number, amount: number): Account {
   if (amount <= 0) {
     throw new Error('Deposit amount must be positive');
   }
@@ -28,7 +30,7 @@ function deposit(accountId, amount) {
   return account;
 }
 
-function withdraw(accountId, amount) {
+function withdraw(accountId: number, amount: number): Account {
   if (amount <= 0) {
     throw new Error('Withdrawal amount must be positive');
   }
@@ -41,9 +43,9 @@ function withdraw(accountId, amount) {
   return account;
 }
 
-function getTransactions(accountId) {
+function getTransactions(accountId: number): Transaction[] {
   getAccount(accountId);
   return transactionRepository.findByAccountId(accountId);
 }
 
-module.exports = { createAccount, getAccount, deposit, withdraw, getTransactions };
+export default { createAccount, getAccount, deposit, withdraw, getTransactions };
