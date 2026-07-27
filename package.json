@@ -6,15 +6,26 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch index.ts"
+    "dev": "tsx watch index.ts",
+    "client:dev": "webpack serve --open",
+    "client:build": "webpack --mode production"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "html-webpack-plugin": "^5.6.8",
+    "ts-loader": "^9.6.2",
     "tsx": "^4.23.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "webpack": "^5.109.0",
+    "webpack-cli": "^7.2.1",
+    "webpack-dev-server": "^6.0.0"
   }
 }
