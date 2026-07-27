@@ -24,6 +24,7 @@ export default function App() {
     });
   }
 
+  //Wrapper for onClick to reduce try/catch boilerplate
   async function run(fn: () => Promise<void>) {
     setError('');
     try {

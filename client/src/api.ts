@@ -16,6 +16,7 @@ export interface Transaction {
 
 const BASE_URL = '/api/accounts';
 
+//Wrapper to reduce response handling boilerplate
 async function handleResponse<T>(res: Response): Promise<T> {
   const data = await res.json();
   if (!res.ok) {
