@@ -131,4 +131,4 @@ Retrieve the transaction history for an account.
 ## Planned / TODO
 
 - **Auth** — routes are currently unauthenticated; any caller can create accounts or move funds for any `userId`. Add authentication and athuorization to api routes.
-- **Integer cents for balance** — `balance` and `amount` are currently floats, which risks rounding errors on money. Switch to storing/transacting in integer cents (or a decimal library) instead.
+- **Integer cents for balance** — `balance` and `amount` are currently floats which can lead to rounding errors on money. Switch to storing/transacting in integer cents (or a decimal library) instead.
