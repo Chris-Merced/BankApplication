@@ -25,9 +25,10 @@ function deposit(accountId: number, amount: number): Account {
     throw new Error('Deposit amount must be positive');
   }
   const account = getAccount(accountId);
-  account.balance = Number(account.balance) + Number(amount);
+  const updatedAccount: Account = { ...account, balance: Number(account.balance) + Number(amount) };
+  accountRepository.update(updatedAccount);
   transactionRepository.create(accountId, 'DEPOSIT', amount);
-  return account;
+  return updatedAccount;
 }
 
 function withdraw(accountId: number, amount: number): Account {
@@ -38,9 +39,10 @@ function withdraw(accountId: number, amount: number): Account {
   if (account.balance < amount) {
     throw new Error('Insufficient funds');
   }
-  account.balance = Number(account.balance) - Number(amount);
+  const updatedAccount: Account = { ...account, balance: Number(account.balance) - Number(amount) };
+  accountRepository.update(updatedAccount);
   transactionRepository.create(accountId, 'WITHDRAWAL', amount);
-  return account;
+  return updatedAccount;
 }
 
 function getTransactions(accountId: number): Transaction[] {

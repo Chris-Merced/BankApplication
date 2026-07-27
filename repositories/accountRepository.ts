@@ -17,4 +17,13 @@ function findAll(): Account[] {
   return accounts;
 }
 
-export default { create, findById, findAll };
+function update(account: Account): Account {
+  const index = accounts.findIndex((a) => a.account_id === account.account_id);
+  if (index === -1) {
+    throw new Error('Account not found');
+  }
+  accounts[index] = account;
+  return accounts[index];
+}
+
+export default { create, findById, findAll, update };

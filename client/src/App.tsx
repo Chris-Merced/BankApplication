@@ -7,9 +7,22 @@ export default function App() {
   const [accountType, setAccountType] = useState('SAVINGS');
   const [accountIdInput, setAccountIdInput] = useState('1');
   const [amount, setAmount] = useState('100');
-  const [account, setAccount] = useState<Account | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionsAccountId, setTransactionsAccountId] = useState<number | null>(null);
   const [error, setError] = useState('');
+
+  function upsertAccount(updated: Account) {
+    setAccounts((prev) => {
+      const index = prev.findIndex((a) => a.account_id === updated.account_id);
+      if (index === -1) {
+        return [...prev, updated];
+      }
+      const next = [...prev];
+      next[index] = updated;
+      return next;
+    });
+  }
 
   async function run(fn: () => Promise<void>) {
     setError('');
@@ -33,39 +46,72 @@ export default function App() {
           <option value="SAVINGS">SAVINGS</option>
           <option value="CHECKING">CHECKING</option>
         </select>
-        <button onClick={() => run(async () => setAccount(await api.createAccount(Number(userId), accountType)))}>
+        <button onClick={() => run(async () => upsertAccount(await api.createAccount(Number(userId), accountType)))}>
           Create
         </button>
       </section>
 
       <section>
-        <h2>Account</h2>
+        <h2>Account Actions</h2>
         <input value={accountIdInput} onChange={(e) => setAccountIdInput(e.target.value)} placeholder="accountId" />
-        <button onClick={() => run(async () => setAccount(await api.getAccount(Number(accountIdInput))))}>
+        <button onClick={() => run(async () => upsertAccount(await api.getAccount(Number(accountIdInput))))}>
           Fetch
         </button>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amount" />
-        <button onClick={() => run(async () => setAccount(await api.deposit(Number(accountIdInput), Number(amount))))}>
+        <button onClick={() => run(async () => upsertAccount(await api.deposit(Number(accountIdInput), Number(amount))))}>
           Deposit
         </button>
-        <button onClick={() => run(async () => setAccount(await api.withdraw(Number(accountIdInput), Number(amount))))}>
+        <button onClick={() => run(async () => upsertAccount(await api.withdraw(Number(accountIdInput), Number(amount))))}>
           Withdraw
         </button>
-        <button onClick={() => run(async () => setTransactions(await api.getTransactions(Number(accountIdInput))))}>
+        <button
+          onClick={() =>
+            run(async () => {
+              const id = Number(accountIdInput);
+              setTransactions(await api.getTransactions(id));
+              setTransactionsAccountId(id);
+            })
+          }
+        >
           Load Transactions
         </button>
       </section>
 
-      {account && (
-        <section>
-          <h3>Account Details</h3>
-          <pre>{JSON.stringify(account, null, 2)}</pre>
-        </section>
-      )}
+      <section>
+        <h3>Accounts ({accounts.length})</h3>
+        {accounts.length === 0 ? (
+          <p>No accounts yet — create one above.</p>
+        ) : (
+          <table border={1} cellPadding={6} style={{ borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th>account_id</th>
+                <th>user_id</th>
+                <th>account_type</th>
+                <th>balance</th>
+                <th>created_at</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...accounts]
+                .sort((a, b) => a.account_id - b.account_id)
+                .map((a) => (
+                  <tr key={a.account_id}>
+                    <td>{a.account_id}</td>
+                    <td>{a.user_id}</td>
+                    <td>{a.account_type}</td>
+                    <td>{a.balance}</td>
+                    <td>{a.created_at}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
-      {transactions.length > 0 && (
+      {transactionsAccountId !== null && (
         <section>
-          <h3>Transactions</h3>
+          <h3>Transactions for account {transactionsAccountId}</h3>
           <pre>{JSON.stringify(transactions, null, 2)}</pre>
         </section>
       )}
