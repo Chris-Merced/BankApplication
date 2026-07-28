@@ -93,6 +93,30 @@ function withdraw(req: Request, res: Response): void {
 }
 
 /**
+ * Transfers funds from one account to another.
+ *
+ * `POST /api/accounts/:id/transfer`
+ *
+ * @param req - Express request with the source account ID in `params.id`, and
+ *              `toAccountId` and `amount` in the JSON body.
+ * @param res - Returns both updated accounts with status 200, or an error with status 400.
+ */
+function transfer(req: Request, res: Response): void {
+  try {
+    const fromAccountId = Number(req.params.id);
+    const { toAccountId, amount } = req.body;
+    if (toAccountId === undefined || amount === undefined) {
+      res.status(400).json({ error: 'toAccountId and amount are required' });
+      return;
+    }
+    const result = AccountService.transfer(fromAccountId, Number(toAccountId), Number(amount));
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+/**
  * Retrieves the transaction history for an account.
  *
  * `GET /api/accounts/:id/transactions`
@@ -110,4 +134,4 @@ function getTransactions(req: Request, res: Response): void {
   }
 }
 
-export default { createAccount, getAccount, deposit, withdraw, getTransactions };
+export default { createAccount, getAccount, deposit, withdraw, transfer, getTransactions };

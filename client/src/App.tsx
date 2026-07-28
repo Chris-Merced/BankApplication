@@ -7,6 +7,10 @@ export default function App() {
   const [accountType, setAccountType] = useState('SAVINGS');
   const [accountIdInput, setAccountIdInput] = useState('1');
   const [amount, setAmount] = useState('100');
+  // Transfer keeps its own from/to/amount so it never depends on the Account Actions fields
+  const [transferFromInput, setTransferFromInput] = useState('1');
+  const [transferToInput, setTransferToInput] = useState('2');
+  const [transferAmount, setTransferAmount] = useState('100');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsAccountId, setTransactionsAccountId] = useState<number | null>(null);
@@ -81,6 +85,41 @@ export default function App() {
           }
         >
           Load Transactions
+        </button>
+      </section>
+
+      <section>
+        <h2>Transfer</h2>
+        <input
+          value={transferFromInput}
+          onChange={(e) => setTransferFromInput(e.target.value)}
+          placeholder="fromAccountId"
+        />
+        <input
+          value={transferToInput}
+          onChange={(e) => setTransferToInput(e.target.value)}
+          placeholder="toAccountId"
+        />
+        <input
+          value={transferAmount}
+          onChange={(e) => setTransferAmount(e.target.value)}
+          placeholder="amount"
+        />
+        <button
+          onClick={() =>
+            run(async () => {
+              // Both sides changed balance, so both are pushed through upsertAccount
+              const { from, to } = await api.transfer(
+                Number(transferFromInput),
+                Number(transferToInput),
+                Number(transferAmount),
+              );
+              upsertAccount(from);
+              upsertAccount(to);
+            })
+          }
+        >
+          Transfer
         </button>
       </section>
 
