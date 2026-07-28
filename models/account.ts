@@ -7,7 +7,7 @@ export class Account {
   account_id: number;
   user_id: number;
   account_type: AccountType;
-  balance: number; // stored in cents
+  balance: number; 
   created_at: string;
 
   constructor(id: number, userId: number, accountType: AccountType, balance: number = 0) {
