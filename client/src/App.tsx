@@ -132,11 +132,11 @@ export default function App() {
           <label>
             Recent window:
             <select value={deltaUnit} onChange={(e) => setDeltaUnit(e.target.value as 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year')}>
-              <option value="second">Seconds</option>
-              <option value="minute">Minutes</option>
-              <option value="hour">Hours</option>
-              <option value="month">Months</option>
-              <option value="year">Years</option>
+              <option value="second">Second(s)</option>
+              <option value="minute">Minute(s)</option>
+              <option value="hour">Hour(s)</option>
+              <option value="month">Month(s)</option>
+              <option value="year">Year(s)</option>
             </select>
           </label>
           <input
@@ -231,6 +231,7 @@ export default function App() {
               {[...accounts]
                 .sort((a, b) => a.account_id - b.account_id)
                 .map((a) => {
+                  //change row color based on whether the account has had a net deposit or withdrawal in the recent window
                   const monthDelta = accountMonthDeltas[a.account_id] ?? 0;
                   const rowBackground = monthDelta < 0 ? '#fbeaea' : monthDelta > 0 ? '#ebf8eb' : 'transparent';
 
@@ -239,8 +240,8 @@ export default function App() {
                       <td>{a.account_id}</td>
                       <td>{a.user_id}</td>
                       <td>{a.account_type}</td>
-                      <td>{format_currency(a.balance)}</td>
-                      <td>{format_time(a.created_at)}</td>
+                      <td>{format_currency(a.balance)}</td>//format given amount to currency
+                      <td>{format_time(a.created_at)}</td>//format given timestamp to local time
                     </tr>
                   );
                 })}
@@ -251,7 +252,7 @@ export default function App() {
 
       {transactionsAccountId !== null && (
         <section
-        style={{
+        style={{//style the transactions section to have a max height and scroll if needed
           maxHeight: '300px',
           overflowY: 'auto',
           border: '1px solid #ccc',
