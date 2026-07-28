@@ -16,7 +16,8 @@ async function create(userId: number, accountType: AccountType): Promise<Account
 
 async function findById(accountId: number): Promise<Account | undefined> {
   const collection = await getCollection();
-  return collection.findOne({ account_id: accountId });
+  // findOne resolves to null on a miss; the repository contract is undefined
+  return (await collection.findOne({ account_id: accountId })) ?? undefined;
 }
 
 async function findAll(): Promise<Account[]> {

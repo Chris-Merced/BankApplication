@@ -25,6 +25,24 @@ async function createUser(name: string, email: string, password: string): Promis
   return userRepository.create(name.trim(), email, hashPassword);
 }
 
+/**
+ * Verifies an email/password pair against the stored bcrypt hash.
+ *
+ * An unknown email and a wrong password raise the identical error on purpose:
+ * a distinct "no such user" message would let anyone probe which emails are
+ * registered.
+ */
+async function login(email: string, password: string): Promise<User> {
+  if (!email || !password) {
+    throw new Error('Email and password are required');
+  }
+  const user = await userRepository.findByEmail(email);
+  if (!user || !bcrypt.compareSync(password, user.hash_password)) {
+    throw new Error('Invalid email or password');
+  }
+  return user;
+}
+
 async function getUserById(userId: number): Promise<User> {
   const user = await userRepository.findById(userId);
   if (!user) {
@@ -87,4 +105,4 @@ async function deleteUser(userId: number): Promise<void> {
   await userRepository.deleteById(userId);
 }
 
-export default { createUser, getUserById, getAllUsers, updateUser, deleteUser };
+export default { createUser, login, getUserById, getAllUsers, updateUser, deleteUser };

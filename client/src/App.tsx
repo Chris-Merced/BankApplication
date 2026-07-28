@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import * as api from './api';
-import type { Account, Transaction } from './api';
+import Auth from './Auth';
+import type { Account, PublicUser, Transaction } from './api';
 
 export default function App() {
-  const [userId, setUserId] = useState('1');
+  const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
   const [accountType, setAccountType] = useState('SAVINGS');
-  const [accountIdInput, setAccountIdInput] = useState('1');
+  // The signed-in user picks one of their own accounts instead of typing an ID
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [amount, setAmount] = useState('100');
   // Transfer keeps its own from/to/amount so it never depends on the Account Actions fields
   const [transferFromInput, setTransferFromInput] = useState('1');
@@ -108,20 +110,66 @@ export default function App() {
     }
   }
 
+  // Pulls the user's existing accounts straight away so the table isn't empty on arrival
+  async function handleAuthenticated(user: PublicUser) {
+    setCurrentUser(user);
+    setError('');
+    try {
+      const userAccounts = await api.getAccountsForUser(user.user_id);
+      setAccounts(userAccounts);
+      // Preselect one so Deposit/Withdraw are usable without any extra clicks
+      setSelectedAccountId(userAccounts.length > 0 ? userAccounts[0].account_id : null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  // Clears every piece of account state so the next user never sees the previous one's data
+  function handleLogout() {
+    setCurrentUser(null);
+    setAccounts([]);
+    setSelectedAccountId(null);
+    setTransactions([]);
+    setTransactionsAccountId(null);
+    setAccountMonthDeltas({});
+    setError('');
+  }
+
+  if (!currentUser) {
+    return <Auth onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 20 }}>
-      <h1>Bank Application</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Bank Application</h1>
+        <div>
+          <span style={{ marginRight: 8 }}>
+            {currentUser.name} ({currentUser.email})
+          </span>
+          <button onClick={handleLogout}>Log Out</button>
+        </div>
+      </div>
 
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
       <section>
         <h2>Create Account</h2>
-        <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="userId" />
+        {/* Owner comes from the session rather than a typed-in userId */}
         <select value={accountType} onChange={(e) => setAccountType(e.target.value)}>
           <option value="SAVINGS">SAVINGS</option>
           <option value="CHECKING">CHECKING</option>
         </select>
-        <button onClick={() => run(async () => upsertAccount(await api.createAccount(Number(userId), accountType)))}>
+        <button
+          onClick={() =>
+            run(async () => {
+              const created = await api.createAccount(currentUser.user_id, accountType);
+              await upsertAccount(created);
+              // Their first account becomes the selection; later ones don't steal it
+              setSelectedAccountId((prev) => prev ?? created.account_id);
+            })
+          }
+        >
           Create
         </button>
       </section>
@@ -148,33 +196,50 @@ export default function App() {
             style={{ width: 80 }}
           />
         </div>
-        <input value={accountIdInput} onChange={(e) => setAccountIdInput(e.target.value)} placeholder="accountId" />
-        <button onClick={() => run(async () => upsertAccount(await api.getAccount(Number(accountIdInput))))}>
-          Fetch
-        </button>
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amount" />
-        <button onClick={() => run(async () => upsertAccount(await api.deposit(Number(accountIdInput), Number(amount))))}>
-          Deposit
-        </button>
-        <button onClick={() => run(async () => upsertAccount(await api.withdraw(Number(accountIdInput), Number(amount))))}>
-          Withdraw
-        </button>
-        <button
-          onClick={() =>
-            run(async () => {
-              const id = Number(accountIdInput);
-              const accountTransactions = await api.getTransactions(id);
-              setTransactions(accountTransactions);
-              setTransactionsAccountId(id);
-              setAccountMonthDeltas((prev) => ({
-                ...prev,
-                [id]: getRecentDelta(accountTransactions, deltaUnit, Number(deltaAmount)),
-              }));
-            })
-          }
-        >
-          Load Transactions
-        </button>
+        {accounts.length === 0 ? (
+          <p>Create an account above to deposit or withdraw.</p>
+        ) : (
+          <>
+            <select
+              value={selectedAccountId ?? ''}
+              onChange={(e) => setSelectedAccountId(Number(e.target.value))}
+            >
+              {[...accounts]
+                .sort((a, b) => a.account_id - b.account_id)
+                .map((a) => (
+                  <option key={a.account_id} value={a.account_id}>
+                    {a.account_type} #{a.account_id} — {format_currency(a.balance)}
+                  </option>
+                ))}
+            </select>
+            <button onClick={() => run(async () => upsertAccount(await api.getAccount(selectedAccountId!)))}>
+              Refresh
+            </button>
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amount" />
+            <button onClick={() => run(async () => upsertAccount(await api.deposit(selectedAccountId!, Number(amount))))}>
+              Deposit
+            </button>
+            <button onClick={() => run(async () => upsertAccount(await api.withdraw(selectedAccountId!, Number(amount))))}>
+              Withdraw
+            </button>
+            <button
+              onClick={() =>
+                run(async () => {
+                  const id = selectedAccountId!;
+                  const accountTransactions = await api.getTransactions(id);
+                  setTransactions(accountTransactions);
+                  setTransactionsAccountId(id);
+                  setAccountMonthDeltas((prev) => ({
+                    ...prev,
+                    [id]: getRecentDelta(accountTransactions, deltaUnit, Number(deltaAmount)),
+                  }));
+                })
+              }
+            >
+              Load Transactions
+            </button>
+          </>
+        )}
       </section>
 
       <section>
