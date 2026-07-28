@@ -1,51 +1,47 @@
+import { Collection } from 'mongodb';
+import { getDatabase } from '../db/mongo';
 import { User } from '../models/user';
 
-// Not real bcrypt hashes - these seed users are demo data only and can't log in.
-const SEED_HASH_PLACEHOLDER = 'seed-placeholder-not-a-real-hash';
-
-const users: User[] = [
-  new User(1, 'Alice Johnson', 'alice@example.com', SEED_HASH_PLACEHOLDER),
-  new User(2, 'Bob Smith', 'bob@example.com', SEED_HASH_PLACEHOLDER),
-  new User(3, 'Carol Diaz', 'carol@example.com', SEED_HASH_PLACEHOLDER),
-  new User(4, 'Dave Chen', 'dave@example.com', SEED_HASH_PLACEHOLDER),
-  new User(5, 'Eve Patel', 'eve@example.com', SEED_HASH_PLACEHOLDER),
-];
-let nextUserId = users.length + 1;
-
-function findById(userId: number): User | undefined {
-  return users.find((u) => u.user_id === userId);
+async function getCollection(): Promise<Collection<User>> {
+  const db = await getDatabase();
+  return db.collection<User>('users');
 }
 
-function findByEmail(email: string): User | undefined {
-  return users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+async function findById(userId: number): Promise<User | undefined> {
+  const collection = await getCollection();
+  return collection.findOne({ user_id: userId });
 }
 
-function findAll(): User[] {
-  return users;
+async function findByEmail(email: string): Promise<User | undefined> {
+  const collection = await getCollection();
+  return collection.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
 }
 
-function create(name: string, email: string, hashPassword: string): User {
-  const user = new User(nextUserId++, name, email, hashPassword);
-  users.push(user);
+async function findAll(): Promise<User[]> {
+  const collection = await getCollection();
+  return collection.find({}).sort({ user_id: 1 }).toArray();
+}
+
+async function create(name: string, email: string, hashPassword: string): Promise<User> {
+  const collection = await getCollection();
+  const user = new User(Date.now(), name, email, hashPassword);
+  await collection.insertOne(user);
   return user;
 }
 
-function update(user: User): User {
-  const index = users.findIndex((u) => u.user_id === user.user_id);
-  if (index === -1) {
+async function update(user: User): Promise<User> {
+  const collection = await getCollection();
+  const result = await collection.updateOne({ user_id: user.user_id }, { $set: user });
+  if (result.matchedCount === 0) {
     throw new Error('User not found');
   }
-  users[index] = user;
-  return users[index];
+  return user;
 }
 
-function deleteById(userId: number): boolean {
-  const index = users.findIndex((u) => u.user_id === userId);
-  if (index === -1) {
-    return false;
-  }
-  users.splice(index, 1);
-  return true;
+async function deleteById(userId: number): Promise<boolean> {
+  const collection = await getCollection();
+  const result = await collection.deleteOne({ user_id: userId });
+  return result.deletedCount > 0;
 }
 
 export default { findById, findByEmail, findAll, create, update, deleteById };

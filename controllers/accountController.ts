@@ -16,7 +16,7 @@ function isAccountType(value: unknown): value is AccountType {
  * @param req - Express request with `userId` and `accountType` in the JSON body.
  * @param res - Returns the created account with status 201, or an error with status 400.
  */
-function createAccount(req: Request, res: Response): void {
+async function createAccount(req: Request, res: Response): Promise<void> {
   try {
     const { userId, accountType } = req.body;
     if (!userId || !accountType) {
@@ -28,7 +28,7 @@ function createAccount(req: Request, res: Response): void {
       res.status(400).json({ error: `accountType must be one of: ${ACCOUNT_TYPES.join(', ')}` });
       return;
     }
-    const account = AccountService.createAccount(Number(userId), normalizedType);
+    const account = await AccountService.createAccount(Number(userId), normalizedType);
     res.status(201).json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -43,10 +43,10 @@ function createAccount(req: Request, res: Response): void {
  * @param req - Express request with the account ID in `params.id`.
  * @param res - Returns the account with status 200, or an error with status 404.
  */
-function getAccount(req: Request, res: Response): void {
+async function getAccount(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
-    const account = AccountService.getAccount(accountId);
+    const account = await AccountService.getAccount(accountId);
     res.json(account);
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });
@@ -62,11 +62,11 @@ function getAccount(req: Request, res: Response): void {
  * @param res - Returns the updated account with status 200, or an error with status 400.
  */
 // TODO: Distinguish 404 (account not found) from 400 (bad amount) via custom error classes
-function deposit(req: Request, res: Response): void {
+async function deposit(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
     const { amount } = req.body;
-    const account = AccountService.deposit(accountId, Number(amount));
+    const account = await AccountService.deposit(accountId, Number(amount));
     res.json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -81,11 +81,11 @@ function deposit(req: Request, res: Response): void {
  * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
  * @param res - Returns the updated account with status 200, or an error with status 400.
  */
-function withdraw(req: Request, res: Response): void {
+async function withdraw(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
     const { amount } = req.body;
-    const account = AccountService.withdraw(accountId, Number(amount));
+    const account = await AccountService.withdraw(accountId, Number(amount));
     res.json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -101,7 +101,7 @@ function withdraw(req: Request, res: Response): void {
  *              `toAccountId` and `amount` in the JSON body.
  * @param res - Returns both updated accounts with status 200, or an error with status 400.
  */
-function transfer(req: Request, res: Response): void {
+async function transfer(req: Request, res: Response): Promise<void> {
   try {
     const fromAccountId = Number(req.params.id);
     const { toAccountId, amount } = req.body;
@@ -109,7 +109,7 @@ function transfer(req: Request, res: Response): void {
       res.status(400).json({ error: 'toAccountId and amount are required' });
       return;
     }
-    const result = AccountService.transfer(fromAccountId, Number(toAccountId), Number(amount));
+    const result = await AccountService.transfer(fromAccountId, Number(toAccountId), Number(amount));
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -124,10 +124,10 @@ function transfer(req: Request, res: Response): void {
  * @param req - Express request with the account ID in `params.id`.
  * @param res - Returns the transaction list with status 200, or an error with status 404.
  */
-function getTransactions(req: Request, res: Response): void {
+async function getTransactions(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
-    const transactions = AccountService.getTransactions(accountId);
+    const transactions = await AccountService.getTransactions(accountId);
     res.json(transactions);
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });
@@ -142,10 +142,10 @@ function getTransactions(req: Request, res: Response): void {
  * @param req - Express request with the account ID in `params.id`.
  * @param res - Returns status 204 on success, or an error with status 400.
  */
-function deleteAccount(req: Request, res: Response): void {
+async function deleteAccount(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
-    AccountService.deleteAccount(accountId);
+    await AccountService.deleteAccount(accountId);
     res.status(204).send();
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -160,11 +160,11 @@ function deleteAccount(req: Request, res: Response): void {
  * @param req - Express request with the account ID in `params.id` and the transaction ID in `params.txnId`.
  * @param res - Returns status 204 on success, or an error with status 400.
  */
-function deleteTransaction(req: Request, res: Response): void {
+async function deleteTransaction(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
     const txnId = Number(req.params.txnId);
-    AccountService.deleteTransaction(accountId, txnId);
+    await AccountService.deleteTransaction(accountId, txnId);
     res.status(204).send();
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });

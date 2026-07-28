@@ -3,6 +3,7 @@ import swaggerUi from 'swagger-ui-express';
 import accountRoutes from './routes/accountRoutes';
 import userRoutes from './routes/userRoutes';
 import openApiDocument from './openapi.json';
+import { connectToDatabase } from './db/mongo';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 app.use('/api/accounts', accountRoutes);
 app.use('/api/users', userRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+async function startServer(): Promise<void> {
+  try {
+    await connectToDatabase();
+    app.listen(PORT, () => {
+      console.log(`Server listening on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
