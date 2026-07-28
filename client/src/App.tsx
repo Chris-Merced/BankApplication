@@ -234,14 +234,14 @@ export default function App() {
                   //change row color based on whether the account has had a net deposit or withdrawal in the recent window
                   const monthDelta = accountMonthDeltas[a.account_id] ?? 0;
                   const rowBackground = monthDelta < 0 ? '#fbeaea' : monthDelta > 0 ? '#ebf8eb' : 'transparent';
-
+                  
                   return (
                     <tr key={a.account_id} style={{ backgroundColor: rowBackground }}>
                       <td>{a.account_id}</td>
                       <td>{a.user_id}</td>
                       <td>{a.account_type}</td>
-                      <td>{format_currency(a.balance)}</td>//format given amount to currency
-                      <td>{format_time(a.created_at)}</td>//format given timestamp to local time
+                      <td>{format_currency(a.balance)}</td>
+                      <td>{format_time(a.created_at)}</td>
                     </tr>
                   );
                 })}
