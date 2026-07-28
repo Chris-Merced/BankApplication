@@ -1,0 +1,394 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bank Application API",
+    "version": "1.0.0",
+    "description": "API for creating bank accounts, moving funds, and viewing transaction history."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "API status and health"
+    },
+    {
+      "name": "Accounts",
+      "description": "Bank account operations"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Get API status",
+        "operationId": "getApiStatus",
+        "responses": {
+          "200": {
+            "description": "The API is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Check API health",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "The API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Create an account",
+        "description": "Creates an account for an existing user.",
+        "operationId": "createAccount",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/accounts/{id}": {
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "Get an account",
+        "operationId": "getAccount",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/accounts/{id}/deposit": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Deposit funds",
+        "operationId": "deposit",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Funds deposited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/accounts/{id}/withdraw": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Withdraw funds",
+        "operationId": "withdraw",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Funds withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/accounts/{id}/transactions": {
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "List account transactions",
+        "operationId": "getTransactions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Transaction"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "AccountId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Account ID",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "example": 1
+      }
+    },
+    "schemas": {
+      "ApiStatus": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Bank Application API is running"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          }
+        }
+      },
+      "CreateAccountRequest": {
+        "type": "object",
+        "required": ["userId", "accountType"],
+        "additionalProperties": false,
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "accountType": {
+            "type": "string",
+            "enum": ["CHECKING", "SAVINGS"],
+            "example": "CHECKING"
+          }
+        }
+      },
+      "AmountRequest": {
+        "type": "object",
+        "required": ["amount"],
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "example": 100
+          }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "user_id",
+          "account_type",
+          "balance",
+          "created_at"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "account_type": {
+            "type": "string",
+            "enum": ["CHECKING", "SAVINGS"],
+            "example": "CHECKING"
+          },
+          "balance": {
+            "type": "number",
+            "example": 100
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-28T12:00:00.000Z"
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "required": [
+          "txn_id",
+          "account_id",
+          "txn_type",
+          "amount",
+          "created_at"
+        ],
+        "properties": {
+          "txn_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "account_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "txn_type": {
+            "type": "string",
+            "enum": ["DEPOSIT", "WITHDRAWAL"],
+            "example": "DEPOSIT"
+          },
+          "amount": {
+            "type": "number",
+            "example": 100
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-28T12:05:00.000Z"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Account not found"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The request could not be completed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The requested account was not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

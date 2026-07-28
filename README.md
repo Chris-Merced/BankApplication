@@ -18,6 +18,15 @@ npm run client:build  # bundle the frontend
 npm start             # run compiled API
 ```
 
+## Interactive API Documentation
+
+With the API running, open [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+to browse the Swagger UI and try requests against the API.
+
+The machine-readable OpenAPI 3.1 contract is available at
+[http://localhost:3000/openapi.json](http://localhost:3000/openapi.json) and is
+maintained in `openapi.json`.
+
 ## API Routes
 
 Base URL: `http://localhost:3000`
