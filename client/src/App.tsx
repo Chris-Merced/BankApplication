@@ -117,7 +117,16 @@ export default function App() {
       </section>
 
       {transactionsAccountId !== null && (
-        <section>
+        <section
+        style={{
+          maxHeight: '300px',
+          overflowY: 'auto',
+          border: '1px solid #ccc',
+          padding: '12px',
+          borderRadius: '8px',
+          background: '#f9f9f9',
+          }}
+      >
           <h3>Transactions for account {transactionsAccountId}</h3>
           <pre>{JSON.stringify(transactions, null, 2)}</pre>
         </section>
