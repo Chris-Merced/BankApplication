@@ -1,6 +1,7 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import accountRoutes from './routes/accountRoutes';
+import userRoutes from './routes/userRoutes';
 import openApiDocument from './openapi.json';
 
 const app = express();
@@ -23,6 +24,7 @@ app.get('/openapi.json', (_req, res) => {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
 app.use('/api/accounts', accountRoutes);
+app.use('/api/users', userRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);

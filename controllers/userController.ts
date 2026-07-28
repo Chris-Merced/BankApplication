@@ -1,0 +1,58 @@
+import { Request, Response } from 'express';
+import UserService from '../services/UserService';
+import { toPublicUser } from '../models/user';
+
+/**
+ * Creates a new user.
+ *
+ * `POST /api/users`
+ *
+ * @param req - Express request with `name`, `email`, and `password` in the JSON body.
+ * @param res - Returns the created user with status 201, or an error with status 400.
+ */
+function createUser(req: Request, res: Response): void {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      res.status(400).json({ error: 'name, email, and password are required' });
+      return;
+    }
+    const user = UserService.createUser(name, email, password);
+    res.status(201).json(toPublicUser(user));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+/**
+ * Retrieves a user by their ID.
+ *
+ * `GET /api/users/:id`
+ *
+ * @param req - Express request with the user ID in `params.id`.
+ * @param res - Returns the user with status 200, or an error with status 404.
+ */
+function getUser(req: Request, res: Response): void {
+  try {
+    const userId = Number(req.params.id);
+    const user = UserService.getUserById(userId);
+    res.json(toPublicUser(user));
+  } catch (err) {
+    res.status(404).json({ error: (err as Error).message });
+  }
+}
+
+/**
+ * Retrieves all users.
+ *
+ * `GET /api/users`
+ *
+ * @param req - Express request.
+ * @param res - Returns the list of users with status 200.
+ */
+function getUsers(req: Request, res: Response): void {
+  const users = UserService.getAllUsers();
+  res.json(users.map(toPublicUser));
+}
+
+export default { createUser, getUser, getUsers };

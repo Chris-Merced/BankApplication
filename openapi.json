@@ -19,6 +19,10 @@
     {
       "name": "Accounts",
       "description": "Bank account operations"
+    },
+    {
+      "name": "Users",
+      "description": "User management"
     }
   ],
   "paths": {
@@ -223,6 +227,86 @@
           }
         }
       }
+    },
+    "/api/users": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Create a user",
+        "description": "Creates a new user.",
+        "operationId": "createUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "operationId": "getUsers",
+        "responses": {
+          "200": {
+            "description": "List of users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user",
+        "operationId": "getUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -232,6 +316,17 @@
         "in": "path",
         "required": true,
         "description": "Account ID",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "example": 1
+      },
+      "UserId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "User ID",
         "schema": {
           "type": "integer",
           "minimum": 1
@@ -286,6 +381,51 @@
             "type": "number",
             "exclusiveMinimum": 0,
             "example": 100
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": ["name", "email", "password"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Frank Ortiz"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "frank@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "correct-horse-battery"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["user_id", "name", "email", "created_at"],
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "example": 6
+          },
+          "name": {
+            "type": "string",
+            "example": "Frank Ortiz"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "frank@example.com"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-28T12:00:00.000Z"
           }
         }
       },
