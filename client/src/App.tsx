@@ -14,6 +14,9 @@ export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsAccountId, setTransactionsAccountId] = useState<number | null>(null);
+  const [accountMonthDeltas, setAccountMonthDeltas] = useState<Record<number, number>>({});
+  const [deltaUnit, setDeltaUnit] = useState<'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'>('month');
+  const [deltaAmount, setDeltaAmount] = useState('1');
   const [error, setError] = useState('');
 
   /**
@@ -22,17 +25,78 @@ export default function App() {
   * through here and syncs it with the accounts list
   * Always returns a new array so re-render is not skipped
   */
-  function upsertAccount(updated: Account) {
+  async function upsertAccount(updated: Account) {
     setAccounts((prev) => {
       const index = prev.findIndex((a) => a.account_id === updated.account_id);
       if (index === -1) {
         return [...prev, updated];
       }
-      const next = [...prev]; 
+      const next = [...prev];
       next[index] = updated;
       return next;
     });
+
+    try {
+      const recentTransactions = await api.getTransactions(updated.account_id);
+      setAccountMonthDeltas((prev) => ({
+        ...prev,
+        [updated.account_id]: getRecentDelta(recentTransactions, deltaUnit, Number(deltaAmount)),
+      }));
+    } catch {
+      setAccountMonthDeltas((prev) => ({
+        ...prev,
+        [updated.account_id]: 0,
+      }));
+    }
   }
+
+  function format_time(isoString: string): string{
+    const date = new Date(isoString);
+    return date.toLocaleString();
+  }
+
+  function format_currency(amount: number): string {
+    return `$${amount.toFixed(2)}`;
+  }
+
+  function getRecentDelta(transactions: Transaction[], unit: 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' = 'month', amount = 1): number {
+    const now = new Date();
+    const startDate = new Date(now);
+
+    if (unit === 'second') {
+      startDate.setSeconds(now.getSeconds() - amount);
+    } else if (unit === 'minute') {
+      startDate.setMinutes(now.getMinutes() - amount);
+    } else if (unit === 'hour') {
+      startDate.setHours(now.getHours() - amount);
+    } else if (unit === 'day') {
+      startDate.setDate(now.getDate() - amount);
+    } else if (unit === 'week') {
+      startDate.setDate(now.getDate() - amount * 7);
+    } else if (unit === 'month') {
+      startDate.setMonth(now.getMonth() - amount);
+    } else if (unit === 'year') {
+      startDate.setFullYear(now.getFullYear() - amount);
+    }
+
+    return transactions.reduce((sum, tx) => {
+      const txDate = new Date(tx.created_at);
+      if (txDate < startDate) {
+        return sum;
+      }
+
+      if (tx.txn_type === 'DEPOSIT') {
+        return sum + tx.amount;
+      }
+
+      if (tx.txn_type === 'WITHDRAWAL') {
+        return sum - tx.amount;
+      }
+
+      return sum;
+    }, 0);
+  }
+
 
   // Wrapper for button actions to reduce try/catch boilerplate and handle errors
   async function run(fn: () => Promise<void>) {
@@ -64,6 +128,26 @@ export default function App() {
 
       <section>
         <h2>Account Actions</h2>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+          <label>
+            Recent window:
+            <select value={deltaUnit} onChange={(e) => setDeltaUnit(e.target.value as 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year')}>
+              <option value="second">Seconds</option>
+              <option value="minute">Minutes</option>
+              <option value="hour">Hours</option>
+              <option value="month">Months</option>
+              <option value="year">Years</option>
+            </select>
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={deltaAmount}
+            onChange={(e) => setDeltaAmount(e.target.value)}
+            placeholder="Amount"
+            style={{ width: 80 }}
+          />
+        </div>
         <input value={accountIdInput} onChange={(e) => setAccountIdInput(e.target.value)} placeholder="accountId" />
         <button onClick={() => run(async () => upsertAccount(await api.getAccount(Number(accountIdInput))))}>
           Fetch
@@ -79,8 +163,13 @@ export default function App() {
           onClick={() =>
             run(async () => {
               const id = Number(accountIdInput);
-              setTransactions(await api.getTransactions(id));
+              const accountTransactions = await api.getTransactions(id);
+              setTransactions(accountTransactions);
               setTransactionsAccountId(id);
+              setAccountMonthDeltas((prev) => ({
+                ...prev,
+                [id]: getRecentDelta(accountTransactions, deltaUnit, Number(deltaAmount)),
+              }));
             })
           }
         >
@@ -141,15 +230,20 @@ export default function App() {
             <tbody>
               {[...accounts]
                 .sort((a, b) => a.account_id - b.account_id)
-                .map((a) => (
-                  <tr key={a.account_id}>
-                    <td>{a.account_id}</td>
-                    <td>{a.user_id}</td>
-                    <td>{a.account_type}</td>
-                    <td>{a.balance}</td>
-                    <td>{a.created_at}</td>
-                  </tr>
-                ))}
+                .map((a) => {
+                  const monthDelta = accountMonthDeltas[a.account_id] ?? 0;
+                  const rowBackground = monthDelta < 0 ? '#fbeaea' : monthDelta > 0 ? '#ebf8eb' : 'transparent';
+
+                  return (
+                    <tr key={a.account_id} style={{ backgroundColor: rowBackground }}>
+                      <td>{a.account_id}</td>
+                      <td>{a.user_id}</td>
+                      <td>{a.account_type}</td>
+                      <td>{format_currency(a.balance)}</td>
+                      <td>{format_time(a.created_at)}</td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         )}
