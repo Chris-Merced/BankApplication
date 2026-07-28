@@ -194,6 +194,44 @@
         }
       }
     },
+    "/api/accounts/{id}/transfer": {
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Transfer funds to another account",
+        "description": "Moves funds from the account in the path to another account of any type. Both accounts must exist, they must be different, and the source must have sufficient funds; otherwise no balance changes.",
+        "operationId": "transfer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Funds transferred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
     "/api/accounts/{id}/transactions": {
       "get": {
         "tags": ["Accounts"],
@@ -289,6 +327,38 @@
           }
         }
       },
+      "TransferRequest": {
+        "type": "object",
+        "required": ["toAccountId", "amount"],
+        "additionalProperties": false,
+        "properties": {
+          "toAccountId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Destination account ID. Must differ from the account in the path.",
+            "example": 2
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "example": 100
+          }
+        }
+      },
+      "TransferResult": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/Account",
+            "description": "Source account after the debit"
+          },
+          "to": {
+            "$ref": "#/components/schemas/Account",
+            "description": "Destination account after the credit"
+          }
+        }
+      },
       "Account": {
         "type": "object",
         "required": [
@@ -330,6 +400,7 @@
           "account_id",
           "txn_type",
           "amount",
+          "related_account_id",
           "created_at"
         ],
         "properties": {
@@ -343,12 +414,17 @@
           },
           "txn_type": {
             "type": "string",
-            "enum": ["DEPOSIT", "WITHDRAWAL"],
+            "enum": ["DEPOSIT", "WITHDRAWAL", "TRANSFER_IN", "TRANSFER_OUT"],
             "example": "DEPOSIT"
           },
           "amount": {
             "type": "number",
             "example": 100
+          },
+          "related_account_id": {
+            "type": ["integer", "null"],
+            "description": "The counterparty account on a transfer; null for deposits and withdrawals.",
+            "example": null
           },
           "created_at": {
             "type": "string",

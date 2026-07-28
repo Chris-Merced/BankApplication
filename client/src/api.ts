@@ -11,7 +11,13 @@ export interface Transaction {
   account_id: number;
   txn_type: string;
   amount: number;
+  related_account_id: number | null;
   created_at: string;
+}
+
+export interface TransferResult {
+  from: Account;
+  to: Account;
 }
 
 const BASE_URL = '/api/accounts';
@@ -51,6 +57,15 @@ export function withdraw(accountId: number, amount: number): Promise<Account> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount }),
   }).then((res) => handleResponse<Account>(res));
+}
+
+// Resolves to both sides of the transfer so the caller can refresh each balance
+export function transfer(fromAccountId: number, toAccountId: number, amount: number): Promise<TransferResult> {
+  return fetch(`${BASE_URL}/${fromAccountId}/transfer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ toAccountId, amount }),
+  }).then((res) => handleResponse<TransferResult>(res));
 }
 
 export function getTransactions(accountId: number): Promise<Transaction[]> {
