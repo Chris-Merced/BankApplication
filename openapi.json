@@ -388,6 +388,42 @@
           }
         }
       },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update a user",
+        "description": "Updates a user's name and/or email. At least one field must be provided.",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      },
       "delete": {
         "tags": ["Users"],
         "summary": "Delete a user",
@@ -537,6 +573,22 @@
             "type": "string",
             "format": "date-time",
             "example": "2026-07-28T12:00:00.000Z"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Frank Ortiz"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "frank@example.com"
           }
         }
       },

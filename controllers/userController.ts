@@ -56,6 +56,29 @@ function getUsers(req: Request, res: Response): void {
 }
 
 /**
+ * Updates a user's name and/or email.
+ *
+ * `PATCH /api/users/:id`
+ *
+ * @param req - Express request with the user ID in `params.id` and optional `name`/`email` in the JSON body.
+ * @param res - Returns the updated user with status 200, or an error with status 400.
+ */
+function updateUser(req: Request, res: Response): void {
+  try {
+    const userId = Number(req.params.id);
+    const { name, email } = req.body;
+    if (name === undefined && email === undefined) {
+      res.status(400).json({ error: 'name and/or email must be provided' });
+      return;
+    }
+    const user = UserService.updateUser(userId, { name, email });
+    res.json(toPublicUser(user));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+/**
  * Deletes a user, cascading to their accounts and transaction history.
  *
  * `DELETE /api/users/:id`
@@ -73,4 +96,4 @@ function deleteUser(req: Request, res: Response): void {
   }
 }
 
-export default { createUser, getUser, getUsers, deleteUser };
+export default { createUser, getUser, getUsers, updateUser, deleteUser };

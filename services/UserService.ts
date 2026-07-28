@@ -37,6 +37,38 @@ function getAllUsers(): User[] {
   return userRepository.findAll();
 }
 
+interface UpdateUserInput {
+  name?: string;
+  email?: string;
+}
+
+function updateUser(userId: number, updates: UpdateUserInput): User {
+  const user = getUserById(userId);
+
+  let name = user.name;
+  if (updates.name !== undefined) {
+    if (!updates.name.trim()) {
+      throw new Error('Name is required');
+    }
+    name = updates.name.trim();
+  }
+
+  let email = user.email;
+  if (updates.email !== undefined) {
+    if (!EMAIL_REGEX.test(updates.email)) {
+      throw new Error('A valid email is required');
+    }
+    const existing = userRepository.findByEmail(updates.email);
+    if (existing && existing.user_id !== userId) {
+      throw new Error('A user with this email already exists');
+    }
+    email = updates.email;
+  }
+
+  const updatedUser: User = { ...user, name, email };
+  return userRepository.update(updatedUser);
+}
+
 /**
  * Deletes a user and cascades to their accounts and transaction history.
  * Every account is checked for a zero balance up front so the cascade is
@@ -55,4 +87,4 @@ function deleteUser(userId: number): void {
   userRepository.deleteById(userId);
 }
 
-export default { createUser, getUserById, getAllUsers, deleteUser };
+export default { createUser, getUserById, getAllUsers, updateUser, deleteUser };

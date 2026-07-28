@@ -30,6 +30,15 @@ function create(name: string, email: string, hashPassword: string): User {
   return user;
 }
 
+function update(user: User): User {
+  const index = users.findIndex((u) => u.user_id === user.user_id);
+  if (index === -1) {
+    throw new Error('User not found');
+  }
+  users[index] = user;
+  return users[index];
+}
+
 function deleteById(userId: number): boolean {
   const index = users.findIndex((u) => u.user_id === userId);
   if (index === -1) {
@@ -39,4 +48,4 @@ function deleteById(userId: number): boolean {
   return true;
 }
 
-export default { findById, findByEmail, findAll, create, deleteById };
+export default { findById, findByEmail, findAll, create, update, deleteById };
