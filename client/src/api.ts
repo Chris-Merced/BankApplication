@@ -16,7 +16,7 @@ export interface Transaction {
 
 const BASE_URL = '/api/accounts';
 
-//Wrapper to reduce response handling boilerplate
+// Parses every API response into JavaScript object - throws error on non-ok response
 async function handleResponse<T>(res: Response): Promise<T> {
   const data = await res.json();
   if (!res.ok) {
