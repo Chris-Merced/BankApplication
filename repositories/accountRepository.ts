@@ -17,6 +17,10 @@ function findAll(): Account[] {
   return accounts;
 }
 
+function findByUserId(userId: number): Account[] {
+  return accounts.filter((a) => a.user_id === userId);
+}
+
 function update(account: Account): Account {
   const index = accounts.findIndex((a) => a.account_id === account.account_id);
   if (index === -1) {
@@ -26,4 +30,13 @@ function update(account: Account): Account {
   return accounts[index];
 }
 
-export default { create, findById, findAll, update };
+function deleteById(accountId: number): boolean {
+  const index = accounts.findIndex((a) => a.account_id === accountId);
+  if (index === -1) {
+    return false;
+  }
+  accounts.splice(index, 1);
+  return true;
+}
+
+export default { create, findById, findAll, findByUserId, update, deleteById };

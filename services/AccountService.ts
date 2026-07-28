@@ -86,4 +86,35 @@ function getTransactions(accountId: number): Transaction[] {
   return transactionRepository.findByAccountId(accountId);
 }
 
-export default { createAccount, getAccount, deposit, withdraw, transfer, getTransactions };
+/**
+ * Deletes an account. The balance must be zero first, mirroring how a real
+ * bank requires an account to be emptied before it can be closed.
+ */
+function deleteAccount(accountId: number): void {
+  const account = getAccount(accountId);
+  if (account.balance !== 0) {
+    throw new Error('Cannot delete an account with a non-zero balance');
+  }
+  transactionRepository.deleteByAccountId(accountId);
+  accountRepository.deleteById(accountId);
+}
+
+function deleteTransaction(accountId: number, txnId: number): void {
+  getAccount(accountId);
+  const txn = transactionRepository.findById(txnId);
+  if (!txn || txn.account_id !== accountId) {
+    throw new Error('Transaction not found');
+  }
+  transactionRepository.deleteById(txnId);
+}
+
+export default {
+  createAccount,
+  getAccount,
+  deposit,
+  withdraw,
+  transfer,
+  getTransactions,
+  deleteAccount,
+  deleteTransaction,
+};

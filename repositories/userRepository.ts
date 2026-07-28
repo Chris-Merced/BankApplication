@@ -30,4 +30,13 @@ function create(name: string, email: string, hashPassword: string): User {
   return user;
 }
 
-export default { findById, findByEmail, findAll, create };
+function deleteById(userId: number): boolean {
+  const index = users.findIndex((u) => u.user_id === userId);
+  if (index === -1) {
+    return false;
+  }
+  users.splice(index, 1);
+  return true;
+}
+
+export default { findById, findByEmail, findAll, create, deleteById };

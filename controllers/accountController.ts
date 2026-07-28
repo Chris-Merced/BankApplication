@@ -134,4 +134,50 @@ function getTransactions(req: Request, res: Response): void {
   }
 }
 
-export default { createAccount, getAccount, deposit, withdraw, transfer, getTransactions };
+/**
+ * Deletes an account. The balance must be zero first.
+ *
+ * `DELETE /api/accounts/:id`
+ *
+ * @param req - Express request with the account ID in `params.id`.
+ * @param res - Returns status 204 on success, or an error with status 400.
+ */
+function deleteAccount(req: Request, res: Response): void {
+  try {
+    const accountId = Number(req.params.id);
+    AccountService.deleteAccount(accountId);
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+/**
+ * Deletes a single transaction from an account's history.
+ *
+ * `DELETE /api/accounts/:id/transactions/:txnId`
+ *
+ * @param req - Express request with the account ID in `params.id` and the transaction ID in `params.txnId`.
+ * @param res - Returns status 204 on success, or an error with status 400.
+ */
+function deleteTransaction(req: Request, res: Response): void {
+  try {
+    const accountId = Number(req.params.id);
+    const txnId = Number(req.params.txnId);
+    AccountService.deleteTransaction(accountId, txnId);
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+export default {
+  createAccount,
+  getAccount,
+  deposit,
+  withdraw,
+  transfer,
+  getTransactions,
+  deleteAccount,
+  deleteTransaction,
+};

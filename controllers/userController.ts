@@ -55,4 +55,22 @@ function getUsers(req: Request, res: Response): void {
   res.json(users.map(toPublicUser));
 }
 
-export default { createUser, getUser, getUsers };
+/**
+ * Deletes a user, cascading to their accounts and transaction history.
+ *
+ * `DELETE /api/users/:id`
+ *
+ * @param req - Express request with the user ID in `params.id`.
+ * @param res - Returns status 204 on success, or an error with status 400.
+ */
+function deleteUser(req: Request, res: Response): void {
+  try {
+    const userId = Number(req.params.id);
+    UserService.deleteUser(userId);
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+export default { createUser, getUser, getUsers, deleteUser };

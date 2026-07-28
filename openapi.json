@@ -122,6 +122,25 @@
             "$ref": "#/components/responses/NotFound"
           }
         }
+      },
+      "delete": {
+        "tags": ["Accounts"],
+        "summary": "Delete an account",
+        "description": "Deletes an account and cascades to its transaction history. The account balance must be zero.",
+        "operationId": "deleteAccount",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Account deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
       }
     },
     "/api/accounts/{id}/deposit": {
@@ -266,6 +285,30 @@
         }
       }
     },
+    "/api/accounts/{id}/transactions/{txnId}": {
+      "delete": {
+        "tags": ["Accounts"],
+        "summary": "Delete a transaction",
+        "description": "Deletes a single transaction from an account's history.",
+        "operationId": "deleteTransaction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AccountId"
+          },
+          {
+            "$ref": "#/components/parameters/TransactionId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transaction deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
     "/api/users": {
       "post": {
         "tags": ["Users"],
@@ -344,6 +387,25 @@
             "$ref": "#/components/responses/NotFound"
           }
         }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete a user",
+        "description": "Deletes a user and cascades to their accounts and transaction history. Every account must have a zero balance.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
       }
     }
   },
@@ -365,6 +427,17 @@
         "in": "path",
         "required": true,
         "description": "User ID",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "example": 1
+      },
+      "TransactionId": {
+        "name": "txnId",
+        "in": "path",
+        "required": true,
+        "description": "Transaction ID",
         "schema": {
           "type": "integer",
           "minimum": 1
