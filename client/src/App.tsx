@@ -30,7 +30,7 @@ export default function App() {
     });
   }
 
-  //Wrapper for onClick to reduce try/catch boilerplate
+  // Wrapper for button actions to reduce try/catch boilerplate and handle errors
   async function run(fn: () => Promise<void>) {
     setError('');
     try {
