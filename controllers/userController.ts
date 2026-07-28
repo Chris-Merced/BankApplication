@@ -10,14 +10,14 @@ import { toPublicUser } from '../models/user';
  * @param req - Express request with `name`, `email`, and `password` in the JSON body.
  * @param res - Returns the created user with status 201, or an error with status 400.
  */
-function createUser(req: Request, res: Response): void {
+async function createUser(req: Request, res: Response): Promise<void> {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
       res.status(400).json({ error: 'name, email, and password are required' });
       return;
     }
-    const user = UserService.createUser(name, email, password);
+    const user = await UserService.createUser(name, email, password);
     res.status(201).json(toPublicUser(user));
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -32,10 +32,10 @@ function createUser(req: Request, res: Response): void {
  * @param req - Express request with the user ID in `params.id`.
  * @param res - Returns the user with status 200, or an error with status 404.
  */
-function getUser(req: Request, res: Response): void {
+async function getUser(req: Request, res: Response): Promise<void> {
   try {
     const userId = Number(req.params.id);
-    const user = UserService.getUserById(userId);
+    const user = await UserService.getUserById(userId);
     res.json(toPublicUser(user));
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });
@@ -50,8 +50,8 @@ function getUser(req: Request, res: Response): void {
  * @param req - Express request.
  * @param res - Returns the list of users with status 200.
  */
-function getUsers(req: Request, res: Response): void {
-  const users = UserService.getAllUsers();
+async function getUsers(req: Request, res: Response): Promise<void> {
+  const users = await UserService.getAllUsers();
   res.json(users.map(toPublicUser));
 }
 
@@ -63,7 +63,7 @@ function getUsers(req: Request, res: Response): void {
  * @param req - Express request with the user ID in `params.id` and optional `name`/`email` in the JSON body.
  * @param res - Returns the updated user with status 200, or an error with status 400.
  */
-function updateUser(req: Request, res: Response): void {
+async function updateUser(req: Request, res: Response): Promise<void> {
   try {
     const userId = Number(req.params.id);
     const { name, email } = req.body;
@@ -71,7 +71,7 @@ function updateUser(req: Request, res: Response): void {
       res.status(400).json({ error: 'name and/or email must be provided' });
       return;
     }
-    const user = UserService.updateUser(userId, { name, email });
+    const user = await UserService.updateUser(userId, { name, email });
     res.json(toPublicUser(user));
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -86,10 +86,10 @@ function updateUser(req: Request, res: Response): void {
  * @param req - Express request with the user ID in `params.id`.
  * @param res - Returns status 204 on success, or an error with status 400.
  */
-function deleteUser(req: Request, res: Response): void {
+async function deleteUser(req: Request, res: Response): Promise<void> {
   try {
     const userId = Number(req.params.id);
-    UserService.deleteUser(userId);
+    await UserService.deleteUser(userId);
     res.status(204).send();
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });

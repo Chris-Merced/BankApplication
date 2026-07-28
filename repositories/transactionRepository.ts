@@ -1,42 +1,43 @@
+import { Collection } from 'mongodb';
+import { getDatabase } from '../db/mongo';
 import { Transaction, TransactionType } from '../models/transaction';
 
-const transactions: Transaction[] = [];
-let nextTxnId = 1;
+async function getCollection(): Promise<Collection<Transaction>> {
+  const db = await getDatabase();
+  return db.collection<Transaction>('transactions');
+}
 
-function create(
+async function create(
   accountId: number,
   txnType: TransactionType,
   amount: number,
   relatedAccountId: number | null = null,
-): Transaction {
-  const txn = new Transaction(nextTxnId++, accountId, txnType, amount, relatedAccountId);
-  transactions.push(txn);
+): Promise<Transaction> {
+  const collection = await getCollection();
+  const txn = new Transaction(Date.now(), accountId, txnType, amount, relatedAccountId);
+  await collection.insertOne(txn);
   return txn;
 }
 
-function findById(txnId: number): Transaction | undefined {
-  return transactions.find((t) => t.txn_id === txnId);
+async function findById(txnId: number): Promise<Transaction | undefined> {
+  const collection = await getCollection();
+  return collection.findOne({ txn_id: txnId });
 }
 
-function findByAccountId(accountId: number): Transaction[] {
-  return transactions.filter((t) => t.account_id === accountId);
+async function findByAccountId(accountId: number): Promise<Transaction[]> {
+  const collection = await getCollection();
+  return collection.find({ account_id: accountId }).sort({ created_at: 1 }).toArray();
 }
 
-function deleteById(txnId: number): boolean {
-  const index = transactions.findIndex((t) => t.txn_id === txnId);
-  if (index === -1) {
-    return false;
-  }
-  transactions.splice(index, 1);
-  return true;
+async function deleteById(txnId: number): Promise<boolean> {
+  const collection = await getCollection();
+  const result = await collection.deleteOne({ txn_id: txnId });
+  return result.deletedCount > 0;
 }
 
-function deleteByAccountId(accountId: number): void {
-  for (let i = transactions.length - 1; i >= 0; i--) {
-    if (transactions[i].account_id === accountId) {
-      transactions.splice(i, 1);
-    }
-  }
+async function deleteByAccountId(accountId: number): Promise<void> {
+  const collection = await getCollection();
+  await collection.deleteMany({ account_id: accountId });
 }
 
 export default { create, findById, findByAccountId, deleteById, deleteByAccountId };

@@ -8,7 +8,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SALT_ROUNDS = 10; // Length of salt in hashed password
 const MIN_PASSWORD_LENGTH = 8;
 
-function createUser(name: string, email: string, password: string): User {
+async function createUser(name: string, email: string, password: string): Promise<User> {
   if (!name.trim()) {
     throw new Error('Name is required');
   }
@@ -18,22 +18,22 @@ function createUser(name: string, email: string, password: string): User {
   if (!password || password.length < MIN_PASSWORD_LENGTH) {
     throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
-  if (userRepository.findByEmail(email)) {
+  if (await userRepository.findByEmail(email)) {
     throw new Error('A user with this email already exists');
   }
   const hashPassword = bcrypt.hashSync(password, SALT_ROUNDS);
   return userRepository.create(name.trim(), email, hashPassword);
 }
 
-function getUserById(userId: number): User {
-  const user = userRepository.findById(userId);
+async function getUserById(userId: number): Promise<User> {
+  const user = await userRepository.findById(userId);
   if (!user) {
     throw new Error('User not found');
   }
   return user;
 }
 
-function getAllUsers(): User[] {
+async function getAllUsers(): Promise<User[]> {
   return userRepository.findAll();
 }
 
@@ -42,8 +42,8 @@ interface UpdateUserInput {
   email?: string;
 }
 
-function updateUser(userId: number, updates: UpdateUserInput): User {
-  const user = getUserById(userId);
+async function updateUser(userId: number, updates: UpdateUserInput): Promise<User> {
+  const user = await getUserById(userId);
 
   let name = user.name;
   if (updates.name !== undefined) {
@@ -58,7 +58,7 @@ function updateUser(userId: number, updates: UpdateUserInput): User {
     if (!EMAIL_REGEX.test(updates.email)) {
       throw new Error('A valid email is required');
     }
-    const existing = userRepository.findByEmail(updates.email);
+    const existing = await userRepository.findByEmail(updates.email);
     if (existing && existing.user_id !== userId) {
       throw new Error('A user with this email already exists');
     }
@@ -74,17 +74,17 @@ function updateUser(userId: number, updates: UpdateUserInput): User {
  * Every account is checked for a zero balance up front so the cascade is
  * all-or-nothing rather than deleting some accounts and then failing.
  */
-function deleteUser(userId: number): void {
-  getUserById(userId);
-  const accounts = accountRepository.findByUserId(userId);
+async function deleteUser(userId: number): Promise<void> {
+  await getUserById(userId);
+  const accounts = await accountRepository.findByUserId(userId);
   const nonZero = accounts.find((a) => a.balance !== 0);
   if (nonZero) {
     throw new Error(`Cannot delete user: account ${nonZero.account_id} has a non-zero balance`);
   }
   for (const account of accounts) {
-    AccountService.deleteAccount(account.account_id);
+    await AccountService.deleteAccount(account.account_id);
   }
-  userRepository.deleteById(userId);
+  await userRepository.deleteById(userId);
 }
 
 export default { createUser, getUserById, getAllUsers, updateUser, deleteUser };
