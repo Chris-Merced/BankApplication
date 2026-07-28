@@ -12,14 +12,19 @@ export default function App() {
   const [transactionsAccountId, setTransactionsAccountId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
-  //Update accounts list if account exists, insert into list if not
+  /**
+  * Single update path for accounts list: every handler (create,
+  * fetch, deposit, withdraw) passes the returned account
+  * through here and syncs it with the accounts list
+  * Always returns a new array so re-render is not skipped
+  */
   function upsertAccount(updated: Account) {
     setAccounts((prev) => {
       const index = prev.findIndex((a) => a.account_id === updated.account_id);
       if (index === -1) {
         return [...prev, updated];
       }
-      const next = [...prev];
+      const next = [...prev]; 
       next[index] = updated;
       return next;
     });
