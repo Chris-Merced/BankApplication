@@ -12,6 +12,7 @@ export default function App() {
   const [transactionsAccountId, setTransactionsAccountId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
+  //Update accounts list if account exists, insert into list if not
   function upsertAccount(updated: Account) {
     setAccounts((prev) => {
       const index = prev.findIndex((a) => a.account_id === updated.account_id);
