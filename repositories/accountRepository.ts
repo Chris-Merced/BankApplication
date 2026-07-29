@@ -83,10 +83,16 @@ async function deleteById(
   return result.deletedCount > 0;
 }
 
+async function findAll(): Promise<WithId<Account>[]> {
+  const collection = await getCollection();
+  return collection.find({}).sort({ created_at: 1 }).toArray();
+}
+
 export default {
   create,
   findById,
   findByUserId,
   adjustBalance,
   deleteById,
+  findAll,
 };

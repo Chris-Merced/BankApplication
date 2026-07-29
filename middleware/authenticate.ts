@@ -22,7 +22,7 @@ export async function authenticate(
       throw new UnauthorizedError('User account no longer exists');
     }
 
-    req.auth = { userId };
+    req.auth = { userId, role: user.role ?? 'user' };
     next();
   } catch (error) {
     sendError(res, error);

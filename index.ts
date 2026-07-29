@@ -2,6 +2,7 @@ import express from 'express';
 import { Server } from 'http';
 import swaggerUi from 'swagger-ui-express';
 import accountRoutes from './routes/accountRoutes';
+import adminRoutes from './routes/adminRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import openApiDocument from './openapi.json';
@@ -52,6 +53,7 @@ app.use(
 app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 async function startServer(): Promise<void> {
   try {

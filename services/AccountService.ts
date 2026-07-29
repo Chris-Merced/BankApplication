@@ -245,6 +245,27 @@ async function deleteAccount(
   });
 }
 
+async function listAllAccounts(): Promise<WithId<Account>[]> {
+  return accountRepository.findAll();
+}
+
+async function getAccountAsAdmin(
+  accountId: ObjectId,
+): Promise<WithId<Account>> {
+  const account = await accountRepository.findById(accountId);
+  if (!account) {
+    throw new NotFoundError('Account not found');
+  }
+  return account;
+}
+
+async function getTransactionsAsAdmin(
+  accountId: ObjectId,
+): Promise<WithId<Transaction>[]> {
+  await getAccountAsAdmin(accountId);
+  return transactionRepository.findByAccountId(accountId);
+}
+
 async function deleteTransaction(
   accountId: ObjectId,
   userId: ObjectId,
@@ -279,4 +300,7 @@ export default {
   getTransactions,
   deleteAccount,
   deleteTransaction,
+  listAllAccounts,
+  getAccountAsAdmin,
+  getTransactionsAsAdmin,
 };

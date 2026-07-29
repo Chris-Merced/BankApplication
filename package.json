@@ -9,7 +9,8 @@
     "dev": "tsx watch index.ts",
     "client:dev": "webpack serve --open",
     "client:build": "webpack --mode production",
-    "dev:all": "concurrently -n server,client -c blue,green \"npm run dev\" \"npm run client:dev\""
+    "dev:all": "concurrently -n server,client -c blue,green \"npm run dev\" \"npm run client:dev\"",
+    "admin:promote": "tsx scripts/promoteAdmin.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

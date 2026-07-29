@@ -6,7 +6,7 @@ import {
   ConflictError,
   NotFoundError,
 } from '../errors/AppError';
-import { normalizeEmail, User } from '../models/user';
+import { normalizeEmail, USER_ROLES, User, UserRole } from '../models/user';
 import accountRepository from '../repositories/accountRepository';
 import transactionRepository from '../repositories/transactionRepository';
 import userRepository from '../repositories/userRepository';
@@ -134,4 +134,34 @@ async function deleteUser(userId: ObjectId): Promise<void> {
   });
 }
 
-export default { createUser, getUserById, updateUser, deleteUser };
+async function listUsers(): Promise<WithId<User>[]> {
+  return userRepository.findAll();
+}
+
+async function setUserRole(
+  actingUserId: ObjectId,
+  targetUserId: ObjectId,
+  role: UserRole,
+): Promise<WithId<User>> {
+  if (!USER_ROLES.includes(role)) {
+    throw new BadRequestError(`role must be one of: ${USER_ROLES.join(', ')}`);
+  }
+  if (actingUserId.equals(targetUserId) && role !== 'admin') {
+    throw new BadRequestError('Admins cannot revoke their own admin role');
+  }
+
+  const updated = await userRepository.updateRole(targetUserId, role);
+  if (!updated) {
+    throw new NotFoundError('User not found');
+  }
+  return updated;
+}
+
+export default {
+  createUser,
+  getUserById,
+  updateUser,
+  deleteUser,
+  listUsers,
+  setUserRole,
+};

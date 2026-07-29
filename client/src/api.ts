@@ -21,10 +21,13 @@ export interface TransferResult {
   to: Account;
 }
 
+export type UserRole = 'user' | 'admin';
+
 export interface PublicUser {
   user_id: string;
   name: string;
   email: string;
+  role: UserRole;
   created_at: string;
 }
 
@@ -35,6 +38,7 @@ interface AuthResult {
 
 const ACCOUNT_URL = '/api/accounts';
 const AUTH_URL = '/api/auth';
+const ADMIN_URL = '/api/admin';
 const TOKEN_KEY = 'bank_application_token';
 export const AUTH_EXPIRED_EVENT = 'bank-application-auth-expired';
 
@@ -210,6 +214,44 @@ export function getTransactions(
   accountId: string,
 ): Promise<Transaction[]> {
   return fetch(`${ACCOUNT_URL}/${accountId}/transactions`, {
+    headers: authHeaders(),
+  }).then((res) => handleResponse<Transaction[]>(res));
+}
+
+export function adminListUsers(): Promise<PublicUser[]> {
+  return fetch(`${ADMIN_URL}/users`, {
+    headers: authHeaders(),
+  }).then((res) => handleResponse<PublicUser[]>(res));
+}
+
+export function adminSetUserRole(
+  userId: string,
+  role: UserRole,
+): Promise<PublicUser> {
+  return fetch(`${ADMIN_URL}/users/${userId}/role`, {
+    method: 'PATCH',
+    headers: authHeaders(true),
+    body: JSON.stringify({ role }),
+  }).then((res) => handleResponse<PublicUser>(res));
+}
+
+export function adminDeleteUser(userId: string): Promise<void> {
+  return fetch(`${ADMIN_URL}/users/${userId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  }).then((res) => handleResponse<void>(res));
+}
+
+export function adminListAccounts(): Promise<Account[]> {
+  return fetch(`${ADMIN_URL}/accounts`, {
+    headers: authHeaders(),
+  }).then((res) => handleResponse<Account[]>(res));
+}
+
+export function adminGetAccountTransactions(
+  accountId: string,
+): Promise<Transaction[]> {
+  return fetch(`${ADMIN_URL}/accounts/${accountId}/transactions`, {
     headers: authHeaders(),
   }).then((res) => handleResponse<Transaction[]>(res));
 }

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import * as api from './api';
+import Admin from './Admin';
 import Auth from './Auth';
 import type { Account, PublicUser, Transaction } from './api';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
   const [restoringSession, setRestoringSession] = useState(api.hasToken());
+  const [showAdmin, setShowAdmin] = useState(false);
   const [accountType, setAccountType] = useState('SAVINGS');
   // The signed-in user picks one of their own accounts instead of typing an ID
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -176,6 +178,7 @@ export default function App() {
     setTransactions([]);
     setTransactionsAccountId(null);
     setAccountMonthDeltas({});
+    setShowAdmin(false);
     setError('');
   }
 
@@ -195,12 +198,21 @@ export default function App() {
           <span style={{ marginRight: 8 }}>
             {currentUser.name} ({currentUser.email})
           </span>
+          {currentUser.role === 'admin' && (
+            <button style={{ marginRight: 8 }} onClick={() => setShowAdmin((prev) => !prev)}>
+              {showAdmin ? 'My Account' : 'Admin Panel'}
+            </button>
+          )}
           <button onClick={handleLogout}>Log Out</button>
         </div>
       </div>
 
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
+      {showAdmin ? (
+        <Admin currentUserId={currentUser.user_id} />
+      ) : (
+      <>
       <section>
         <h2>Create Account</h2>
         {/* Owner comes from the session rather than a typed-in userId */}
@@ -378,6 +390,8 @@ export default function App() {
           <h3>Transactions for account {transactionsAccountId}</h3>
           <pre>{JSON.stringify(transactions, null, 2)}</pre>
         </section>
+      )}
+      </>
       )}
     </div>
   );

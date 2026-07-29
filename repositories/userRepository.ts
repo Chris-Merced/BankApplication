@@ -9,6 +9,7 @@ import {
   createUserDocument,
   normalizeEmail,
   User,
+  UserRole,
 } from '../models/user';
 
 async function getCollection(): Promise<Collection<User>> {
@@ -78,10 +79,31 @@ async function deleteById(
   return result.deletedCount > 0;
 }
 
+async function findAll(): Promise<WithId<User>[]> {
+  const collection = await getCollection();
+  return collection.find({}).sort({ created_at: 1 }).toArray();
+}
+
+async function updateRole(
+  userId: ObjectId,
+  role: UserRole,
+): Promise<WithId<User> | undefined> {
+  const collection = await getCollection();
+  return (
+    (await collection.findOneAndUpdate(
+      { _id: userId },
+      { $set: { role } },
+      { returnDocument: 'after' },
+    )) ?? undefined
+  );
+}
+
 export default {
   findById,
   findByEmail,
   create,
   updateProfile,
   deleteById,
+  findAll,
+  updateRole,
 };
