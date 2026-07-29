@@ -22,7 +22,7 @@ app.get('/openapi.json', (_req, res) => {
   res.json(openApiDocument);
 });
 
-//Documents api routes and health information
+//Documentation for  api routes and health information
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
 app.use('/api/accounts', accountRoutes);
