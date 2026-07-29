@@ -1,6 +1,7 @@
 import { Collection } from 'mongodb';
 import { getDatabase } from '../db/mongo';
 import { Account, AccountType } from '../models/account';
+import type { WithId } from 'mongodb';
 
 async function getCollection(): Promise<Collection<Account>> {
   const db = await getDatabase();
@@ -14,10 +15,10 @@ async function create(userId: number, accountType: AccountType): Promise<Account
   return account;
 }
 
-async function findById(accountId: number): Promise<Account | undefined> {
+async function findById(accountId: number): Promise< WithId<Account> | null> {
   const collection = await getCollection();
-  // findOne resolves to null on a miss; the repository contract is undefined
-  return (await collection.findOne({ account_id: accountId })) ?? undefined;
+  // findOne already resolves to null on a miss, which the return type carries through
+  return collection.findOne({ account_id: accountId });
 }
 
 async function findAll(): Promise<Account[]> {
