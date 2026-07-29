@@ -58,6 +58,9 @@ export default function App() {
   }
 
   function format_currency(amount: number): string {
+    if (isNaN(amount)){
+      return "";
+    }
     return `$${amount.toFixed(2)}`;
   }
 
