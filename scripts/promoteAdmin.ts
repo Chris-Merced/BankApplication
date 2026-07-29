@@ -1,8 +1,15 @@
 import { normalizeEmail } from '../models/user';
 import userRepository from '../repositories/userRepository';
 import { closeDatabaseConnection, connectToDatabase } from '../db/mongo';
-
+/*
+   * npm run admin:promote <email>
+   * starts up database
+   * Takes email argument and promotes user associated
+   * with that email to admin
+   * disconnects from database gracefully
+   */
 async function main(): Promise<void> {
+  
   const email = process.argv[2];
   if (!email) {
     console.error('Usage: npm run admin:promote -- <email>');
