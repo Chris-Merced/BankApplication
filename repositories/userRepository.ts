@@ -10,12 +10,12 @@ async function getCollection(): Promise<Collection<User>> {
 async function findById(userId: number): Promise< WithId<User> | null> {
   const collection = await getCollection();
   // findOne resolves to null on a miss; the repository contract is undefined
-  return (await collection.findOne({ user_id: userId })) ?? undefined;
+  return (await collection.findOne({ user_id: userId })) ?? null;
 }
 
 async function findByEmail(email: string): Promise< WithId<User> | null> {
   const collection = await getCollection();
-  return (await collection.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })) ?? undefined;
+  return (await collection.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })) ?? null;
 }
 
 async function findAll(): Promise<User[]> {

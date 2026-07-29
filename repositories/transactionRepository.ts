@@ -21,8 +21,8 @@ async function create(
 
 async function findById(txnId: number): Promise< WithId<Transaction> | null> {
   const collection = await getCollection();
-  // findOne resolves to null on a miss; the repository contract is undefined
-  return (await collection.findOne({ txn_id: txnId })) ?? undefined;
+  // findOne resolves to null on a miss; the repository contract is null
+  return (await collection.findOne({ txn_id: txnId })) ??  null;
 }
 
 async function findByAccountId(accountId: number): Promise<Transaction[]> {
