@@ -26,7 +26,9 @@ async function login(req: Request, res: Response): Promise<void> {
     if (typeof email !== 'string' || typeof password !== 'string') {
       throw new BadRequestError('email and password are required');
     }
+    
     const result = await AuthService.login(email, password);
+    //TODO: Send as cookie -- normalize status codes across responses
     res.json(result);
   } catch (error) {
     sendError(res, error);

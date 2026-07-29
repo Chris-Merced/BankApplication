@@ -114,6 +114,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return data as T;
 }
 
+//TODO: Send token in cookie for more robust security
 async function authenticate(
   path: '/register' | '/login',
   body: Record<string, string>,
