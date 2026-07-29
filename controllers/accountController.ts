@@ -36,6 +36,28 @@ async function createAccount(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * Lists the accounts belonging to a user.
+ *
+ * `GET /api/accounts?userId=1`
+ *
+ * @param req - Express request with `userId` in the query string.
+ * @param res - Returns the account list with status 200, or an error with status 400.
+ */
+async function listAccounts(req: Request, res: Response): Promise<void> {
+  try {
+    const { userId } = req.query;
+    if (userId === undefined) {
+      res.status(400).json({ error: 'userId query parameter is required' });
+      return;
+    }
+    const accounts = await AccountService.getAccountsByUser(Number(userId));
+    res.json(accounts);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+}
+
+/**
  * Retrieves an account by its ID.
  *
  * `GET /api/accounts/:id`
@@ -173,6 +195,7 @@ async function deleteTransaction(req: Request, res: Response): Promise<void> {
 
 export default {
   createAccount,
+  listAccounts,
   getAccount,
   deposit,
   withdraw,

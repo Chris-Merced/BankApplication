@@ -4,6 +4,7 @@ import accountController from '../controllers/accountController';
 const router = Router();
 
 router.post('/', accountController.createAccount);
+router.get('/', accountController.listAccounts);
 router.get('/:id', accountController.getAccount);
 router.post('/:id/deposit', accountController.deposit);
 router.post('/:id/withdraw', accountController.withdraw);

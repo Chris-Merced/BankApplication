@@ -20,7 +20,16 @@ export interface TransferResult {
   to: Account;
 }
 
+// The password hash is stripped server-side by toPublicUser, so it never reaches the client
+export interface PublicUser {
+  user_id: number;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
 const BASE_URL = '/api/accounts';
+const USERS_URL = '/api/users';
 
 // Parses every API response into JavaScript object - throws error on non-ok response
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -29,6 +38,27 @@ async function handleResponse<T>(res: Response): Promise<T> {
     throw new Error(data.error || 'Request failed');
   }
   return data as T;
+}
+
+// Password is sent once and hashed with bcrypt server-side; only the hash is stored
+export function register(name: string, email: string, password: string): Promise<PublicUser> {
+  return fetch(USERS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  }).then((res) => handleResponse<PublicUser>(res));
+}
+
+export function login(email: string, password: string): Promise<PublicUser> {
+  return fetch(`${USERS_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  }).then((res) => handleResponse<PublicUser>(res));
+}
+
+export function getAccountsForUser(userId: number): Promise<Account[]> {
+  return fetch(`${BASE_URL}?userId=${userId}`).then((res) => handleResponse<Account[]>(res));
 }
 
 export function createAccount(userId: number, accountType: string): Promise<Account> {
