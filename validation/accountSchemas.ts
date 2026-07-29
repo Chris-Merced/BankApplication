@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { AccountType, ACCOUNT_TYPES } from '../models/account';
 
+// Cast: z.enum needs a non-empty tuple type; ACCOUNT_TYPES is a readonly array
 const accountTypeEnum = z.enum(ACCOUNT_TYPES as [AccountType, ...AccountType[]]);
 
 export const createAccountSchema = z.object({
   userId: z.coerce.number(),
+  // Accept case-insensitive input ("checking" -> "CHECKING") before enum validation
   accountType: z.preprocess(
     (value) => (typeof value === 'string' ? value.toUpperCase() : value),
     accountTypeEnum,
