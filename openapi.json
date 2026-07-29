@@ -65,6 +65,43 @@
       }
     },
     "/api/accounts": {
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "List a user's accounts",
+        "description": "Returns every account belonging to the given user.",
+        "operationId": "listAccounts",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "description": "Owner's user ID",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounts belonging to the user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Account"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      },
       "post": {
         "tags": ["Accounts"],
         "summary": "Create an account",
@@ -309,6 +346,42 @@
         }
       }
     },
+    "/api/users/login": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Log in",
+        "description": "Verifies an email and password against the stored bcrypt hash. An unknown email and a wrong password return the same error so registered emails cannot be discovered.",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated. Returns the user without the password hash.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
     "/api/users": {
       "post": {
         "tags": ["Users"],
@@ -531,6 +604,23 @@
           }
         }
       },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "alice@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "correct horse battery"
+          }
+        }
+      },
       "CreateUserRequest": {
         "type": "object",
         "required": ["name", "email", "password"],
@@ -712,6 +802,16 @@
     "responses": {
       "BadRequest": {
         "description": "The request could not be completed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "The credentials were not valid",
         "content": {
           "application/json": {
             "schema": {

@@ -25,6 +25,29 @@ async function createUser(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * Authenticates a user with their email and password.
+ *
+ * `POST /api/users/login`
+ *
+ * @param req - Express request with `email` and `password` in the JSON body.
+ * @param res - Returns the authenticated user (never the password hash) with
+ *              status 200, or an error with status 401.
+ */
+async function login(req: Request, res: Response): Promise<void> {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      res.status(400).json({ error: 'email and password are required' });
+      return;
+    }
+    const user = await UserService.login(email, password);
+    res.json(toPublicUser(user));
+  } catch (err) {
+    res.status(401).json({ error: (err as Error).message });
+  }
+}
+
+/**
  * Retrieves a user by their ID.
  *
  * `GET /api/users/:id`
@@ -96,4 +119,4 @@ async function deleteUser(req: Request, res: Response): Promise<void> {
   }
 }
 
-export default { createUser, getUser, getUsers, updateUser, deleteUser };
+export default { createUser, login, getUser, getUsers, updateUser, deleteUser };

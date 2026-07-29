@@ -20,6 +20,15 @@ async function getAccount(accountId: number): Promise<Account> {
   return account;
 }
 
+/** Lists every account belonging to a user, so a signed-in user can see their own. */
+async function getAccountsByUser(userId: number): Promise<Account[]> {
+  const user = await userRepository.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  return accountRepository.findByUserId(userId);
+}
+
 async function deposit(accountId: number, amount: number): Promise<Account> {
   if (amount <= 0) {
     throw new Error('Deposit amount must be positive');
@@ -111,6 +120,7 @@ async function deleteTransaction(accountId: number, txnId: number): Promise<void
 export default {
   createAccount,
   getAccount,
+  getAccountsByUser,
   deposit,
   withdraw,
   transfer,
