@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import userRepository from '../repositories/userRepository';
 import accountRepository from '../repositories/accountRepository';
 import AccountService from './AccountService';
-import { User } from '../models/user';
+import { User, normalizeEmail } from '../models/user';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SALT_ROUNDS = 10; // Length of salt in hashed password
@@ -83,7 +83,7 @@ async function updateUser(userId: number, updates: UpdateUserInput): Promise<Use
     email = updates.email;
   }
 
-  const updatedUser: User = { ...user, name, email };
+  const updatedUser: User = { ...user, name, email, email_normalized: normalizeEmail(email) };
   return userRepository.update(updatedUser);
 }
 

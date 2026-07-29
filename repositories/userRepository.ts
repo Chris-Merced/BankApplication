@@ -1,6 +1,6 @@
 import { Collection, WithId } from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { User } from '../models/user';
+import { User, normalizeEmail } from '../models/user';
 
 async function getCollection(): Promise<Collection<User>> {
   const db = await getDatabase();
@@ -15,7 +15,7 @@ async function findById(userId: number): Promise< WithId<User> | null> {
 
 async function findByEmail(email: string): Promise< WithId<User> | null> {
   const collection = await getCollection();
-  return (await collection.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })) ?? null;
+  return (await collection.findOne({ email_normalized: normalizeEmail(email) })) ?? null;
 }
 
 async function findAll(): Promise<User[]> {
