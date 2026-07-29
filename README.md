@@ -88,7 +88,7 @@ Both endpoints return a one-hour JWT:
 ```json
 {
   "user": {
-    "user_id": 1,
+    "user_id": "68878bbcc4bd68e55f468c08",
     "name": "Alice Johnson",
     "email": "alice@example.com",
     "status": "ACTIVE"
@@ -105,6 +105,8 @@ Authorization: Bearer <token>
 
 Account operations enforce ownership. A user can debit only their own source
 account, while a transfer may credit another user's active account.
+
+The JWT subject and all API resource IDs use MongoDB ObjectId strings.
 
 ## Money Values
 
@@ -154,6 +156,7 @@ Protected account routes:
 
 | Method | Route | Description |
 |---|---|---|
+| GET | `/api/accounts` | List the authenticated user's accounts |
 | POST | `/api/accounts` | Create an account for the authenticated user |
 | GET | `/api/accounts/:id` | Get an owned account |
 | POST | `/api/accounts/:id/deposit` | Deposit into an owned account |
@@ -192,9 +195,10 @@ At startup the API:
 
 1. Connects to Atlas and verifies the connection with a ping.
 2. Converts legacy money fields to integer cents.
-3. Normalizes existing user email fields.
-4. Creates unique and query indexes.
-5. Seeds atomic numeric-ID counters from existing data.
+3. Converts legacy numeric IDs and references to the documents' existing
+   MongoDB ObjectIds.
+4. Normalizes existing user email fields.
+5. Creates unique and query indexes.
 6. Starts Express only after initialization succeeds.
 
 Deposits, withdrawals, transfers, and closure cascades use MongoDB sessions and
@@ -212,9 +216,8 @@ The server closes its MongoDB connection on `SIGINT` and `SIGTERM`.
 - Transaction history is immutable.
 - Money operations reject duplicate idempotency keys.
 
-## TODO
+## Frontend
 
-- Update the bare-bones frontend to support registration and login, attach the
-  bearer token to protected requests, use the authenticated user instead of a
-  manually entered user ID, send integer-cent money fields and idempotency keys,
-  and display the updated account and transaction response shapes.
+The React frontend supports registration, login, session restoration, logout,
+authenticated account listing, cent-based money requests, and idempotency keys
+for deposits, withdrawals, and transfers.

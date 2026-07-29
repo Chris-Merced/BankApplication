@@ -1,7 +1,11 @@
-import { ClientSession, Collection } from 'mongodb';
-import { getNextId } from '../db/counters';
+import {
+  ClientSession,
+  Collection,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { User } from '../models/user';
+import { createUserDocument, User } from '../models/user';
 
 async function getCollection(): Promise<Collection<User>> {
   const db = await getDatabase();
@@ -9,33 +13,24 @@ async function getCollection(): Promise<Collection<User>> {
 }
 
 async function findById(
-  userId: number,
+  userId: ObjectId,
   session?: ClientSession,
-): Promise<User | undefined> {
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  const user = await collection.findOne(
-    { user_id: userId },
-    {
-      session,
-      projection: { _id: 0 },
-    },
-  );
-  return user ?? undefined;
+  return (await collection.findOne({ _id: userId }, { session })) ?? undefined;
 }
 
 async function findByEmail(
   email: string,
   session?: ClientSession,
-): Promise<User | undefined> {
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  const user = await collection.findOne(
-    { email_normalized: email.trim().toLowerCase() },
-    {
-      session,
-      projection: { _id: 0 },
-    },
+  return (
+    (await collection.findOne(
+      { email_normalized: email.trim().toLowerCase() },
+      { session },
+    )) ?? undefined
   );
-  return user ?? undefined;
 }
 
 async function create(
@@ -43,63 +38,54 @@ async function create(
   email: string,
   hashPassword: string,
   session?: ClientSession,
-): Promise<User> {
+): Promise<WithId<User>> {
   const collection = await getCollection();
-  const userId = await getNextId('users', session);
-  const user = new User(userId, name, email, hashPassword);
-  await collection.insertOne(user, { session });
-  return user;
+  const user = createUserDocument(name, email, hashPassword);
+  const result = await collection.insertOne(user, { session });
+  return { ...user, _id: result.insertedId };
 }
 
 async function updateProfile(
-  userId: number,
+  userId: ObjectId,
   name: string,
   email: string,
-): Promise<User | undefined> {
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  const user = await collection.findOneAndUpdate(
-    {
-      user_id: userId,
-      status: 'ACTIVE',
-    },
-    {
-      $set: {
-        name,
-        email,
-        email_normalized: email.toLowerCase(),
+  return (
+    (await collection.findOneAndUpdate(
+      { _id: userId, status: 'ACTIVE' },
+      {
+        $set: {
+          name,
+          email,
+          email_normalized: email.toLowerCase(),
+        },
       },
-    },
-    {
-      returnDocument: 'after',
-      projection: { _id: 0 },
-    },
+      { returnDocument: 'after' },
+    )) ?? undefined
   );
-  return user ?? undefined;
 }
 
 async function closeById(
-  userId: number,
+  userId: ObjectId,
   session: ClientSession,
-): Promise<User | undefined> {
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  const user = await collection.findOneAndUpdate(
-    {
-      user_id: userId,
-      status: 'ACTIVE',
-    },
-    {
-      $set: {
-        status: 'CLOSED',
-        closed_at: new Date().toISOString(),
+  return (
+    (await collection.findOneAndUpdate(
+      { _id: userId, status: 'ACTIVE' },
+      {
+        $set: {
+          status: 'CLOSED',
+          closed_at: new Date().toISOString(),
+        },
       },
-    },
-    {
-      session,
-      returnDocument: 'after',
-      projection: { _id: 0 },
-    },
+      {
+        session,
+        returnDocument: 'after',
+      },
+    )) ?? undefined
   );
-  return user ?? undefined;
 }
 
 export default {

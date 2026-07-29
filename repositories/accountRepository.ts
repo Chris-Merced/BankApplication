@@ -1,7 +1,16 @@
-import { ClientSession, Collection, Filter } from 'mongodb';
-import { getNextId } from '../db/counters';
+import {
+  ClientSession,
+  Collection,
+  Filter,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { Account, AccountType } from '../models/account';
+import {
+  Account,
+  AccountType,
+  createAccountDocument,
+} from '../models/account';
 
 async function getCollection(): Promise<Collection<Account>> {
   const db = await getDatabase();
@@ -9,113 +18,91 @@ async function getCollection(): Promise<Collection<Account>> {
 }
 
 async function create(
-  userId: number,
+  userId: ObjectId,
   accountType: AccountType,
   session?: ClientSession,
-): Promise<Account> {
+): Promise<WithId<Account>> {
   const collection = await getCollection();
-  const accountId = await getNextId('accounts', session);
-  const account = new Account(accountId, userId, accountType);
-  await collection.insertOne(account, { session });
-  return account;
+  const account = createAccountDocument(userId, accountType);
+  const result = await collection.insertOne(account, { session });
+  return { ...account, _id: result.insertedId };
 }
 
 async function findById(
-  accountId: number,
+  accountId: ObjectId,
   session?: ClientSession,
-): Promise<Account | undefined> {
+): Promise<WithId<Account> | undefined> {
   const collection = await getCollection();
-  const account = await collection.findOne(
-    { account_id: accountId },
-    {
-      session,
-      projection: { _id: 0 },
-    },
+  return (
+    (await collection.findOne({ _id: accountId }, { session })) ?? undefined
   );
-  return account ?? undefined;
-}
-
-async function findAll(session?: ClientSession): Promise<Account[]> {
-  const collection = await getCollection();
-  return collection
-    .find({}, { session, projection: { _id: 0 } })
-    .sort({ account_id: 1 })
-    .toArray();
 }
 
 async function findByUserId(
-  userId: number,
+  userId: ObjectId,
   session?: ClientSession,
-): Promise<Account[]> {
+): Promise<WithId<Account>[]> {
   const collection = await getCollection();
   return collection
-    .find(
-      { user_id: userId },
-      {
-        session,
-        projection: { _id: 0 },
-      },
-    )
-    .sort({ account_id: 1 })
+    .find({ user_id: userId }, { session })
+    .sort({ created_at: 1 })
     .toArray();
 }
 
 async function adjustBalance(
-  accountId: number,
+  accountId: ObjectId,
   deltaCents: number,
   session: ClientSession,
-): Promise<Account | undefined> {
+): Promise<WithId<Account> | undefined> {
   const collection = await getCollection();
   const filter: Filter<Account> = {
-    account_id: accountId,
+    _id: accountId,
     status: 'ACTIVE',
   };
-
   if (deltaCents < 0) {
     filter.balance_cents = { $gte: Math.abs(deltaCents) };
   }
 
-  const account = await collection.findOneAndUpdate(
-    filter,
-    { $inc: { balance_cents: deltaCents } },
-    {
-      session,
-      returnDocument: 'after',
-      projection: { _id: 0 },
-    },
+  return (
+    (await collection.findOneAndUpdate(
+      filter,
+      { $inc: { balance_cents: deltaCents } },
+      {
+        session,
+        returnDocument: 'after',
+      },
+    )) ?? undefined
   );
-  return account ?? undefined;
 }
 
 async function closeById(
-  accountId: number,
+  accountId: ObjectId,
   session: ClientSession,
-): Promise<Account | undefined> {
+): Promise<WithId<Account> | undefined> {
   const collection = await getCollection();
-  const closedAt = new Date().toISOString();
-  const account = await collection.findOneAndUpdate(
-    {
-      account_id: accountId,
-      status: 'ACTIVE',
-      balance_cents: 0,
-    },
-    {
-      $set: {
-        status: 'CLOSED',
-        closed_at: closedAt,
+  return (
+    (await collection.findOneAndUpdate(
+      {
+        _id: accountId,
+        status: 'ACTIVE',
+        balance_cents: 0,
       },
-    },
-    {
-      session,
-      returnDocument: 'after',
-      projection: { _id: 0 },
-    },
+      {
+        $set: {
+          status: 'CLOSED',
+          closed_at: new Date().toISOString(),
+        },
+      },
+      {
+        session,
+        returnDocument: 'after',
+      },
+    )) ?? undefined
   );
-  return account ?? undefined;
 }
 
 async function closeAllForUser(
-  userId: number,
+  userId: ObjectId,
   session: ClientSession,
 ): Promise<void> {
   const collection = await getCollection();
@@ -138,7 +125,6 @@ async function closeAllForUser(
 export default {
   create,
   findById,
-  findAll,
   findByUserId,
   adjustBalance,
   closeById,

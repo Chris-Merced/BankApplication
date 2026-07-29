@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { MongoServerError } from 'mongodb';
+import { MongoServerError, ObjectId, WithId } from 'mongodb';
 import { runInTransaction } from '../db/mongo';
 import {
   BadRequestError,
@@ -22,7 +22,7 @@ async function createUser(
   name: string,
   email: string,
   password: string,
-): Promise<User> {
+): Promise<WithId<User>> {
   const normalizedName = name.trim();
   const normalizedEmail = normalizeEmail(email);
 
@@ -56,7 +56,7 @@ async function createUser(
   }
 }
 
-async function getUserById(userId: number): Promise<User> {
+async function getUserById(userId: ObjectId): Promise<WithId<User>> {
   const user = await userRepository.findById(userId);
   if (!user || user.status !== 'ACTIVE') {
     throw new NotFoundError('User not found');
@@ -70,9 +70,9 @@ interface UpdateUserInput {
 }
 
 async function updateUser(
-  userId: number,
+  userId: ObjectId,
   updates: UpdateUserInput,
-): Promise<User> {
+): Promise<WithId<User>> {
   const user = await getUserById(userId);
 
   let name = user.name;
@@ -90,7 +90,7 @@ async function updateUser(
       throw new BadRequestError('A valid email is required');
     }
     const existing = await userRepository.findByEmail(email);
-    if (existing && existing.user_id !== userId) {
+    if (existing && !existing._id.equals(userId)) {
       throw new ConflictError('A user with this email already exists');
     }
   }
@@ -109,7 +109,7 @@ async function updateUser(
   }
 }
 
-async function closeUser(userId: number): Promise<void> {
+async function closeUser(userId: ObjectId): Promise<void> {
   await runInTransaction(async (session) => {
     const user = await userRepository.findById(userId, session);
     if (!user || user.status !== 'ACTIVE') {
@@ -122,7 +122,7 @@ async function closeUser(userId: number): Promise<void> {
     );
     if (nonZeroAccount) {
       throw new ConflictError(
-        `Cannot close user: account ${nonZeroAccount.account_id} has a non-zero balance`,
+        `Cannot close user: account ${nonZeroAccount._id.toHexString()} has a non-zero balance`,
       );
     }
 

@@ -1,10 +1,15 @@
 import { Request, Response } from 'express';
 import { BadRequestError } from '../errors/AppError';
-import { ACCOUNT_TYPES, AccountType } from '../models/account';
+import {
+  ACCOUNT_TYPES,
+  AccountType,
+  toAccountResponse,
+} from '../models/account';
+import { toTransactionResponse } from '../models/transaction';
 import AccountService from '../services/AccountService';
 import { sendError } from './httpError';
 import {
-  parsePositiveId,
+  parseObjectId,
   requireIdempotencyKey,
 } from './requestValidation';
 
@@ -31,7 +36,16 @@ async function createAccount(req: Request, res: Response): Promise<void> {
       req.auth!.userId,
       normalizedType,
     );
-    res.status(201).json(account);
+    res.status(201).json(toAccountResponse(account));
+  } catch (error) {
+    sendError(res, error);
+  }
+}
+
+async function listAccounts(req: Request, res: Response): Promise<void> {
+  try {
+    const accounts = await AccountService.getAccountsForUser(req.auth!.userId);
+    res.json(accounts.map(toAccountResponse));
   } catch (error) {
     sendError(res, error);
   }
@@ -39,12 +53,12 @@ async function createAccount(req: Request, res: Response): Promise<void> {
 
 async function getAccount(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const accountId = parseObjectId(req.params.id, 'account ID');
     const account = await AccountService.getAccount(
       accountId,
       req.auth!.userId,
     );
-    res.json(account);
+    res.json(toAccountResponse(account));
   } catch (error) {
     sendError(res, error);
   }
@@ -52,14 +66,14 @@ async function getAccount(req: Request, res: Response): Promise<void> {
 
 async function deposit(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const accountId = parseObjectId(req.params.id, 'account ID');
     const account = await AccountService.deposit(
       accountId,
       req.auth!.userId,
       req.body.amountCents,
       requireIdempotencyKey(req.header('Idempotency-Key')),
     );
-    res.json(account);
+    res.json(toAccountResponse(account));
   } catch (error) {
     sendError(res, error);
   }
@@ -67,14 +81,14 @@ async function deposit(req: Request, res: Response): Promise<void> {
 
 async function withdraw(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const accountId = parseObjectId(req.params.id, 'account ID');
     const account = await AccountService.withdraw(
       accountId,
       req.auth!.userId,
       req.body.amountCents,
       requireIdempotencyKey(req.header('Idempotency-Key')),
     );
-    res.json(account);
+    res.json(toAccountResponse(account));
   } catch (error) {
     sendError(res, error);
   }
@@ -82,8 +96,8 @@ async function withdraw(req: Request, res: Response): Promise<void> {
 
 async function transfer(req: Request, res: Response): Promise<void> {
   try {
-    const fromAccountId = parsePositiveId(req.params.id, 'account ID');
-    const toAccountId = parsePositiveId(
+    const fromAccountId = parseObjectId(req.params.id, 'account ID');
+    const toAccountId = parseObjectId(
       String(req.body.toAccountId),
       'destination account ID',
     );
@@ -94,7 +108,10 @@ async function transfer(req: Request, res: Response): Promise<void> {
       req.body.amountCents,
       requireIdempotencyKey(req.header('Idempotency-Key')),
     );
-    res.json(result);
+    res.json({
+      from: toAccountResponse(result.from),
+      to: toAccountResponse(result.to),
+    });
   } catch (error) {
     sendError(res, error);
   }
@@ -102,12 +119,12 @@ async function transfer(req: Request, res: Response): Promise<void> {
 
 async function getTransactions(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const accountId = parseObjectId(req.params.id, 'account ID');
     const transactions = await AccountService.getTransactions(
       accountId,
       req.auth!.userId,
     );
-    res.json(transactions);
+    res.json(transactions.map(toTransactionResponse));
   } catch (error) {
     sendError(res, error);
   }
@@ -115,7 +132,7 @@ async function getTransactions(req: Request, res: Response): Promise<void> {
 
 async function closeAccount(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const accountId = parseObjectId(req.params.id, 'account ID');
     await AccountService.closeAccount(accountId, req.auth!.userId);
     res.status(204).send();
   } catch (error) {
@@ -125,6 +142,7 @@ async function closeAccount(req: Request, res: Response): Promise<void> {
 
 export default {
   createAccount,
+  listAccounts,
   getAccount,
   deposit,
   withdraw,

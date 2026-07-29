@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate);
 router.post('/', accountController.createAccount);
+router.get('/', accountController.listAccounts);
 router.get('/:id', accountController.getAccount);
 router.post('/:id/deposit', accountController.deposit);
 router.post('/:id/withdraw', accountController.withdraw);

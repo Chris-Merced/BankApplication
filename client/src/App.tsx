@@ -1,23 +1,45 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as api from './api';
-import type { Account, Transaction } from './api';
+import Auth from './Auth';
+import type { Account, PublicUser, Transaction } from './api';
 
 export default function App() {
-  const [userId, setUserId] = useState('1');
+  const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
+  const [restoringSession, setRestoringSession] = useState(api.hasToken());
   const [accountType, setAccountType] = useState('SAVINGS');
-  const [accountIdInput, setAccountIdInput] = useState('1');
+  // The signed-in user picks one of their own accounts instead of typing an ID
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [amount, setAmount] = useState('100');
   // Transfer keeps its own from/to/amount so it never depends on the Account Actions fields
-  const [transferFromInput, setTransferFromInput] = useState('1');
-  const [transferToInput, setTransferToInput] = useState('2');
+  const [transferFromInput, setTransferFromInput] = useState('');
+  const [transferToInput, setTransferToInput] = useState('');
   const [transferAmount, setTransferAmount] = useState('100');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [transactionsAccountId, setTransactionsAccountId] = useState<number | null>(null);
-  const [accountMonthDeltas, setAccountMonthDeltas] = useState<Record<number, number>>({});
+  const [transactionsAccountId, setTransactionsAccountId] = useState<string | null>(null);
+  const [accountMonthDeltas, setAccountMonthDeltas] = useState<Record<string, number>>({});
   const [deltaUnit, setDeltaUnit] = useState<'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'>('month');
   const [deltaAmount, setDeltaAmount] = useState('1');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    function expireSession() {
+      handleLogout();
+    }
+    window.addEventListener(api.AUTH_EXPIRED_EVENT, expireSession);
+
+    if (api.hasToken()) {
+      api
+        .getCurrentUser()
+        .then(handleAuthenticated)
+        .catch(() => api.logout())
+        .finally(() => setRestoringSession(false));
+    }
+
+    return () => {
+      window.removeEventListener(api.AUTH_EXPIRED_EVENT, expireSession);
+    };
+  }, []);
 
   /**
   * Single update path for accounts list: every handler (create,
@@ -55,8 +77,19 @@ export default function App() {
     return date.toLocaleString();
   }
 
-  function format_currency(amount: number): string {
-    return `$${amount.toFixed(2)}`;
+  function format_currency(amountCents: number): string {
+    return `$${(amountCents / 100).toFixed(2)}`;
+  }
+
+  function dollarsToCents(value: string): number {
+    if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) {
+      throw new Error('Enter a positive amount with at most two decimal places');
+    }
+    const cents = Math.round(Number(value) * 100);
+    if (!Number.isSafeInteger(cents) || cents <= 0) {
+      throw new Error('Amount must be greater than zero');
+    }
+    return cents;
   }
 
   function getRecentDelta(transactions: Transaction[], unit: 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' = 'month', amount = 1): number {
@@ -86,11 +119,19 @@ export default function App() {
       }
 
       if (tx.txn_type === 'DEPOSIT') {
-        return sum + tx.amount;
+        return sum + tx.amount_cents;
       }
 
       if (tx.txn_type === 'WITHDRAWAL') {
-        return sum - tx.amount;
+        return sum - tx.amount_cents;
+      }
+
+      if (tx.txn_type === 'TRANSFER_IN') {
+        return sum + tx.amount_cents;
+      }
+
+      if (tx.txn_type === 'TRANSFER_OUT') {
+        return sum - tx.amount_cents;
       }
 
       return sum;
@@ -108,20 +149,78 @@ export default function App() {
     }
   }
 
+  // Pulls the user's existing accounts straight away so the table isn't empty on arrival
+  async function handleAuthenticated(user: PublicUser) {
+    setCurrentUser(user);
+    setError('');
+    try {
+      const userAccounts = await api.getAccounts();
+      setAccounts(userAccounts);
+      const firstActiveAccount = userAccounts.find(
+        (account) => account.status === 'ACTIVE',
+      );
+      // Preselect one so Deposit/Withdraw are usable without any extra clicks
+      setSelectedAccountId(firstActiveAccount?.account_id ?? null);
+      setTransferFromInput(
+        (previous) => previous || firstActiveAccount?.account_id || '',
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  // Clears every piece of account state so the next user never sees the previous one's data
+  function handleLogout() {
+    api.logout();
+    setCurrentUser(null);
+    setAccounts([]);
+    setSelectedAccountId(null);
+    setTransactions([]);
+    setTransactionsAccountId(null);
+    setAccountMonthDeltas({});
+    setError('');
+  }
+
+  if (restoringSession) {
+    return <p style={{ fontFamily: 'sans-serif', padding: 20 }}>Loading…</p>;
+  }
+
+  if (!currentUser) {
+    return <Auth onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 20 }}>
-      <h1>Bank Application</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Bank Application</h1>
+        <div>
+          <span style={{ marginRight: 8 }}>
+            {currentUser.name} ({currentUser.email})
+          </span>
+          <button onClick={handleLogout}>Log Out</button>
+        </div>
+      </div>
 
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
 
       <section>
         <h2>Create Account</h2>
-        <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="userId" />
+        {/* Owner comes from the session rather than a typed-in userId */}
         <select value={accountType} onChange={(e) => setAccountType(e.target.value)}>
           <option value="SAVINGS">SAVINGS</option>
           <option value="CHECKING">CHECKING</option>
         </select>
-        <button onClick={() => run(async () => upsertAccount(await api.createAccount(Number(userId), accountType)))}>
+        <button
+          onClick={() =>
+            run(async () => {
+              const created = await api.createAccount(accountType);
+              await upsertAccount(created);
+              // Their first account becomes the selection; later ones don't steal it
+              setSelectedAccountId((prev) => prev ?? created.account_id);
+              setTransferFromInput((prev) => prev || created.account_id);
+            })
+          }
+        >
           Create
         </button>
       </section>
@@ -148,33 +247,51 @@ export default function App() {
             style={{ width: 80 }}
           />
         </div>
-        <input value={accountIdInput} onChange={(e) => setAccountIdInput(e.target.value)} placeholder="accountId" />
-        <button onClick={() => run(async () => upsertAccount(await api.getAccount(Number(accountIdInput))))}>
-          Fetch
-        </button>
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amount" />
-        <button onClick={() => run(async () => upsertAccount(await api.deposit(Number(accountIdInput), Number(amount))))}>
-          Deposit
-        </button>
-        <button onClick={() => run(async () => upsertAccount(await api.withdraw(Number(accountIdInput), Number(amount))))}>
-          Withdraw
-        </button>
-        <button
-          onClick={() =>
-            run(async () => {
-              const id = Number(accountIdInput);
-              const accountTransactions = await api.getTransactions(id);
-              setTransactions(accountTransactions);
-              setTransactionsAccountId(id);
-              setAccountMonthDeltas((prev) => ({
-                ...prev,
-                [id]: getRecentDelta(accountTransactions, deltaUnit, Number(deltaAmount)),
-              }));
-            })
-          }
-        >
-          Load Transactions
-        </button>
+        {accounts.length === 0 ? (
+          <p>Create an account above to deposit or withdraw.</p>
+        ) : (
+          <>
+            <select
+              value={selectedAccountId ?? ''}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+            >
+              {[...accounts]
+                .filter((account) => account.status === 'ACTIVE')
+                .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                .map((a) => (
+                  <option key={a.account_id} value={a.account_id}>
+                    {a.account_type} #{a.account_id} — {format_currency(a.balance_cents)}
+                  </option>
+                ))}
+            </select>
+            <button onClick={() => run(async () => upsertAccount(await api.getAccount(selectedAccountId!)))}>
+              Refresh
+            </button>
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amount" />
+            <button onClick={() => run(async () => upsertAccount(await api.deposit(selectedAccountId!, dollarsToCents(amount))))}>
+              Deposit
+            </button>
+            <button onClick={() => run(async () => upsertAccount(await api.withdraw(selectedAccountId!, dollarsToCents(amount))))}>
+              Withdraw
+            </button>
+            <button
+              onClick={() =>
+                run(async () => {
+                  const id = selectedAccountId!;
+                  const accountTransactions = await api.getTransactions(id);
+                  setTransactions(accountTransactions);
+                  setTransactionsAccountId(id);
+                  setAccountMonthDeltas((prev) => ({
+                    ...prev,
+                    [id]: getRecentDelta(accountTransactions, deltaUnit, Number(deltaAmount)),
+                  }));
+                })
+              }
+            >
+              Load Transactions
+            </button>
+          </>
+        )}
       </section>
 
       <section>
@@ -199,9 +316,9 @@ export default function App() {
             run(async () => {
               // Both sides changed balance, so both are pushed through upsertAccount
               const { from, to } = await api.transfer(
-                Number(transferFromInput),
-                Number(transferToInput),
-                Number(transferAmount),
+                transferFromInput,
+                transferToInput,
+                dollarsToCents(transferAmount),
               );
               upsertAccount(from);
               upsertAccount(to);
@@ -224,12 +341,13 @@ export default function App() {
                 <th>user_id</th>
                 <th>account_type</th>
                 <th>balance</th>
+                <th>status</th>
                 <th>created_at</th>
               </tr>
             </thead>
             <tbody>
               {[...accounts]
-                .sort((a, b) => a.account_id - b.account_id)
+                .sort((a, b) => a.created_at.localeCompare(b.created_at))
                 .map((a) => {
                   //change row color based on whether the account has had a net deposit or withdrawal in the recent window
                   const monthDelta = accountMonthDeltas[a.account_id] ?? 0;
@@ -240,7 +358,8 @@ export default function App() {
                       <td>{a.account_id}</td>
                       <td>{a.user_id}</td>
                       <td>{a.account_type}</td>
-                      <td>{format_currency(a.balance)}</td>
+                      <td>{format_currency(a.balance_cents)}</td>
+                      <td>{a.status}</td>
                       <td>{format_time(a.created_at)}</td>
                     </tr>
                   );

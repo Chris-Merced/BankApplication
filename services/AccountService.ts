@@ -1,4 +1,9 @@
-import { ClientSession, MongoServerError } from 'mongodb';
+import {
+  ClientSession,
+  MongoServerError,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { runInTransaction } from '../db/mongo';
 import {
   BadRequestError,
@@ -40,16 +45,16 @@ function mapIdempotencyConflict(error: unknown): never {
 }
 
 async function requireOwnedAccount(
-  accountId: number,
-  userId: number,
+  accountId: ObjectId,
+  userId: ObjectId,
   session?: ClientSession,
   requireActive = false,
-): Promise<Account> {
+): Promise<WithId<Account>> {
   const account = await accountRepository.findById(accountId, session);
   if (!account) {
     throw new NotFoundError('Account not found');
   }
-  if (account.user_id !== userId) {
+  if (!account.user_id.equals(userId)) {
     throw new ForbiddenError();
   }
   if (requireActive && account.status !== 'ACTIVE') {
@@ -59,9 +64,9 @@ async function requireOwnedAccount(
 }
 
 async function createAccount(
-  userId: number,
+  userId: ObjectId,
   accountType: AccountType,
-): Promise<Account> {
+): Promise<WithId<Account>> {
   const user = await userRepository.findById(userId);
   if (!user || user.status !== 'ACTIVE') {
     throw new NotFoundError('User not found');
@@ -69,16 +74,25 @@ async function createAccount(
   return accountRepository.create(userId, accountType);
 }
 
-async function getAccount(accountId: number, userId: number): Promise<Account> {
+async function getAccountsForUser(
+  userId: ObjectId,
+): Promise<WithId<Account>[]> {
+  return accountRepository.findByUserId(userId);
+}
+
+async function getAccount(
+  accountId: ObjectId,
+  userId: ObjectId,
+): Promise<WithId<Account>> {
   return requireOwnedAccount(accountId, userId);
 }
 
 async function deposit(
-  accountId: number,
-  userId: number,
+  accountId: ObjectId,
+  userId: ObjectId,
   amountCents: number,
   idempotencyKey: string,
-): Promise<Account> {
+): Promise<WithId<Account>> {
   validateAmountCents(amountCents);
   validateIdempotencyKey(idempotencyKey);
 
@@ -109,11 +123,11 @@ async function deposit(
 }
 
 async function withdraw(
-  accountId: number,
-  userId: number,
+  accountId: ObjectId,
+  userId: ObjectId,
   amountCents: number,
   idempotencyKey: string,
-): Promise<Account> {
+): Promise<WithId<Account>> {
   validateAmountCents(amountCents);
   validateIdempotencyKey(idempotencyKey);
 
@@ -144,20 +158,20 @@ async function withdraw(
 }
 
 export interface TransferResult {
-  from: Account;
-  to: Account;
+  from: WithId<Account>;
+  to: WithId<Account>;
 }
 
 async function transfer(
-  fromAccountId: number,
-  userId: number,
-  toAccountId: number,
+  fromAccountId: ObjectId,
+  userId: ObjectId,
+  toAccountId: ObjectId,
   amountCents: number,
   idempotencyKey: string,
 ): Promise<TransferResult> {
   validateAmountCents(amountCents);
   validateIdempotencyKey(idempotencyKey);
-  if (fromAccountId === toAccountId) {
+  if (fromAccountId.equals(toAccountId)) {
     throw new BadRequestError('Cannot transfer to the same account');
   }
 
@@ -180,7 +194,6 @@ async function transfer(
       if (!updatedFrom) {
         throw new ConflictError('Insufficient funds');
       }
-
       const updatedTo = await accountRepository.adjustBalance(
         toAccountId,
         amountCents,
@@ -214,14 +227,17 @@ async function transfer(
 }
 
 async function getTransactions(
-  accountId: number,
-  userId: number,
-): Promise<Transaction[]> {
+  accountId: ObjectId,
+  userId: ObjectId,
+): Promise<WithId<Transaction>[]> {
   await requireOwnedAccount(accountId, userId);
   return transactionRepository.findByAccountId(accountId);
 }
 
-async function closeAccount(accountId: number, userId: number): Promise<void> {
+async function closeAccount(
+  accountId: ObjectId,
+  userId: ObjectId,
+): Promise<void> {
   await runInTransaction(async (session) => {
     const account = await requireOwnedAccount(accountId, userId, session, true);
     if (account.balance_cents !== 0) {
@@ -238,6 +254,7 @@ async function closeAccount(accountId: number, userId: number): Promise<void> {
 
 export default {
   createAccount,
+  getAccountsForUser,
   getAccount,
   deposit,
   withdraw,

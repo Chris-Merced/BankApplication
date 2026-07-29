@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import { ObjectId } from 'mongodb';
 import { UnauthorizedError } from '../errors/AppError';
 import { PublicUser, toPublicUser } from '../models/user';
 import userRepository from '../repositories/userRepository';
@@ -22,10 +23,10 @@ function getJwtSecret(): string {
   return secret;
 }
 
-function issueToken(userId: number): string {
+function issueToken(userId: ObjectId): string {
   return jwt.sign(
     {
-      sub: String(userId),
+      sub: userId.toHexString(),
       type: 'access',
     },
     getJwtSecret(),
@@ -37,7 +38,7 @@ function issueToken(userId: number): string {
   );
 }
 
-export function verifyToken(token: string): number {
+export function verifyToken(token: string): ObjectId {
   let payload: JwtPayload | string;
   try {
     payload = jwt.verify(token, getJwtSecret(), {
@@ -56,11 +57,10 @@ export function verifyToken(token: string): number {
     throw new UnauthorizedError('Invalid access token');
   }
 
-  const userId = Number(payload.sub);
-  if (!Number.isSafeInteger(userId) || userId <= 0) {
+  if (!ObjectId.isValid(payload.sub)) {
     throw new UnauthorizedError('Invalid access token');
   }
-  return userId;
+  return new ObjectId(payload.sub);
 }
 
 async function register(
@@ -71,7 +71,7 @@ async function register(
   const user = await UserService.createUser(name, email, password);
   return {
     user: toPublicUser(user),
-    token: issueToken(user.user_id),
+    token: issueToken(user._id),
   };
 }
 
@@ -87,7 +87,7 @@ async function login(email: string, password: string): Promise<AuthResult> {
 
   return {
     user: toPublicUser(user),
-    token: issueToken(user.user_id),
+    token: issueToken(user._id),
   };
 }
 

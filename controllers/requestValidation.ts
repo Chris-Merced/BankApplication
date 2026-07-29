@@ -1,17 +1,14 @@
+import { ObjectId } from 'mongodb';
 import { BadRequestError } from '../errors/AppError';
 
-export function parsePositiveId(
+export function parseObjectId(
   value: string | string[],
   name: string,
-): number {
-  if (Array.isArray(value)) {
-    throw new BadRequestError(`${name} must be a positive integer`);
+): ObjectId {
+  if (Array.isArray(value) || !ObjectId.isValid(value)) {
+    throw new BadRequestError(`${name} must be a valid MongoDB ObjectId`);
   }
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-    throw new BadRequestError(`${name} must be a positive integer`);
-  }
-  return parsed;
+  return new ObjectId(value);
 }
 
 export function requireIdempotencyKey(

@@ -1,7 +1,15 @@
-import { ClientSession, Collection } from 'mongodb';
-import { getNextId } from '../db/counters';
+import {
+  ClientSession,
+  Collection,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { Transaction, TransactionType } from '../models/transaction';
+import {
+  createTransactionDocument,
+  Transaction,
+  TransactionType,
+} from '../models/transaction';
 
 async function getCollection(): Promise<Collection<Transaction>> {
   const db = await getDatabase();
@@ -9,40 +17,32 @@ async function getCollection(): Promise<Collection<Transaction>> {
 }
 
 async function create(
-  accountId: number,
+  accountId: ObjectId,
   txnType: TransactionType,
   amountCents: number,
-  relatedAccountId: number | null,
+  relatedAccountId: ObjectId | null,
   session: ClientSession,
   idempotencyKey?: string,
-): Promise<Transaction> {
+): Promise<WithId<Transaction>> {
   const collection = await getCollection();
-  const transactionId = await getNextId('transactions', session);
-  const transaction = new Transaction(
-    transactionId,
+  const transaction = createTransactionDocument(
     accountId,
     txnType,
     amountCents,
     relatedAccountId,
     idempotencyKey,
   );
-  await collection.insertOne(transaction, { session });
-  return transaction;
+  const result = await collection.insertOne(transaction, { session });
+  return { ...transaction, _id: result.insertedId };
 }
 
 async function findByAccountId(
-  accountId: number,
+  accountId: ObjectId,
   session?: ClientSession,
-): Promise<Transaction[]> {
+): Promise<WithId<Transaction>[]> {
   const collection = await getCollection();
   return collection
-    .find(
-      { account_id: accountId },
-      {
-        session,
-        projection: { _id: 0 },
-      },
-    )
+    .find({ account_id: accountId }, { session })
     .sort({ created_at: -1 })
     .toArray();
 }

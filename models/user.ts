@@ -1,7 +1,8 @@
+import { WithId } from 'mongodb';
+
 export type UserStatus = 'ACTIVE' | 'CLOSED';
 
-export class User {
-  user_id: number;
+export interface User {
   name: string;
   email: string;
   email_normalized: string;
@@ -9,26 +10,38 @@ export class User {
   status: UserStatus;
   created_at: string;
   closed_at: string | null;
-
-  constructor(id: number, name: string, email: string, hashPassword: string) {
-    this.user_id = id;
-    this.name = name;
-    this.email = email;
-    this.email_normalized = email.toLowerCase();
-    this.hash_password = hashPassword;
-    this.status = 'ACTIVE';
-    this.created_at = new Date().toISOString();
-    this.closed_at = null;
-  }
 }
 
-export type PublicUser = Omit<User, 'hash_password' | 'email_normalized'>;
+export type PublicUser = Omit<
+  User,
+  'hash_password' | 'email_normalized'
+> & {
+  user_id: string;
+};
 
-export function toPublicUser(user: User): PublicUser {
-  const {
-    hash_password: _hashPassword,
-    email_normalized: _emailNormalized,
-    ...publicUser
-  } = user;
-  return publicUser;
+export function createUserDocument(
+  name: string,
+  email: string,
+  hashPassword: string,
+): User {
+  return {
+    name,
+    email,
+    email_normalized: email.toLowerCase(),
+    hash_password: hashPassword,
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+    closed_at: null,
+  };
+}
+
+export function toPublicUser(user: WithId<User>): PublicUser {
+  return {
+    user_id: user._id.toHexString(),
+    name: user.name,
+    email: user.email,
+    status: user.status,
+    created_at: user.created_at,
+    closed_at: user.closed_at,
+  };
 }
