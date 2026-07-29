@@ -41,3 +41,5 @@ async function startServer(): Promise<void> {
 }
 
 startServer();
+
+//TODO: add proper server shutdown now that db is connected
