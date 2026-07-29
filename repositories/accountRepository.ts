@@ -16,7 +16,6 @@ async function create(userId: number, accountType: AccountType): Promise<Account
 
 async function findById(accountId: number): Promise< WithId<Account> | null> {
   const collection = await getCollection();
-  // findOne already resolves to null on a miss, which the return type carries through
   return collection.findOne({ account_id: accountId });
 }
 

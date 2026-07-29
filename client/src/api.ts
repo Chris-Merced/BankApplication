@@ -2,7 +2,7 @@ export interface Account {
   account_id: number;
   user_id: number;
   account_type: string;
-  balance: number;
+  balance_cents: number;
   created_at: string;
 }
 
@@ -10,7 +10,7 @@ export interface Transaction {
   txn_id: number;
   account_id: number;
   txn_type: string;
-  amount: number;
+  amount_cents: number;
   related_account_id: number | null;
   created_at: string;
 }
@@ -73,28 +73,28 @@ export function getAccount(accountId: number): Promise<Account> {
   return fetch(`${BASE_URL}/${accountId}`).then((res) => handleResponse<Account>(res));
 }
 
-export function deposit(accountId: number, amount: number): Promise<Account> {
+export function deposit(accountId: number, amountCents: number): Promise<Account> {
   return fetch(`${BASE_URL}/${accountId}/deposit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount }),
+    body: JSON.stringify({ amount_cents: amountCents }),
   }).then((res) => handleResponse<Account>(res));
 }
 
-export function withdraw(accountId: number, amount: number): Promise<Account> {
+export function withdraw(accountId: number, amountCents: number): Promise<Account> {
   return fetch(`${BASE_URL}/${accountId}/withdraw`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount }),
+    body: JSON.stringify({ amount_cents: amountCents }),
   }).then((res) => handleResponse<Account>(res));
 }
 
 // Resolves to both sides of the transfer so the caller can refresh each balance
-export function transfer(fromAccountId: number, toAccountId: number, amount: number): Promise<TransferResult> {
+export function transfer(fromAccountId: number, toAccountId: number, amountCents: number): Promise<TransferResult> {
   return fetch(`${BASE_URL}/${fromAccountId}/transfer`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ toAccountId, amount }),
+    body: JSON.stringify({ toAccountId, amount_cents: amountCents }),
   }).then((res) => handleResponse<TransferResult>(res));
 }
 

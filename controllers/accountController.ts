@@ -1,34 +1,19 @@
 import { Request, Response } from 'express';
 import AccountService from '../services/AccountService';
-import { AccountType, ACCOUNT_TYPES } from '../models/account';
-
-
-function isAccountType(value: unknown): value is AccountType {
-  return typeof value === 'string' && (ACCOUNT_TYPES as string[]).includes(value);
-}
-
+import { AccountType } from '../models/account';
 
 /**
  * Creates an account for an existing user.
  *
  * `POST /api/accounts`
  *
- * @param req - Express request with `userId` and `accountType` in the JSON body.
+ * @param req - Express request with `userId` and `accountType` in the JSON body (validated by {@link createAccountSchema}).
  * @param res - Returns the created account with status 201, or an error with status 400.
  */
 async function createAccount(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, accountType } = req.body;
-    if (!userId || !accountType) {
-      res.status(400).json({ error: 'userId and accountType are required' });
-      return;
-    }
-    const normalizedType = typeof accountType === 'string' ? accountType.toUpperCase() : accountType;
-    if (!isAccountType(normalizedType)) {
-      res.status(400).json({ error: `accountType must be one of: ${ACCOUNT_TYPES.join(', ')}` });
-      return;
-    }
-    const account = await AccountService.createAccount(Number(userId), normalizedType);
+    const { userId, accountType } = req.body as { userId: number; accountType: AccountType };
+    const account = await AccountService.createAccount(userId, accountType);
     res.status(201).json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -40,17 +25,13 @@ async function createAccount(req: Request, res: Response): Promise<void> {
  *
  * `GET /api/accounts?userId=1`
  *
- * @param req - Express request with `userId` in the query string.
+ * @param req - Express request with `userId` in the query string (validated by {@link listAccountsQuerySchema}).
  * @param res - Returns the account list with status 200, or an error with status 400.
  */
 async function listAccounts(req: Request, res: Response): Promise<void> {
   try {
-    const { userId } = req.query;
-    if (userId === undefined) {
-      res.status(400).json({ error: 'userId query parameter is required' });
-      return;
-    }
-    const accounts = await AccountService.getAccountsByUser(Number(userId));
+    const { userId } = req.query as unknown as { userId: number };
+    const accounts = await AccountService.getAccountsByUser(userId);
     res.json(accounts);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -80,15 +61,14 @@ async function getAccount(req: Request, res: Response): Promise<void> {
  *
  * `POST /api/accounts/:id/deposit`
  *
- * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
+ * @param req - Express request with the account ID in `params.id` and `amount_cents` in the JSON body (validated by {@link amountSchema}).
  * @param res - Returns the updated account with status 200, or an error with status 400.
  */
-//TODO: Use zod for runtime type checking
 async function deposit(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
-    const { amount } = req.body;
-    const account = await AccountService.deposit(accountId, Number(amount));
+    const { amount_cents } = req.body as { amount_cents: number };
+    const account = await AccountService.deposit(accountId, amount_cents);
     res.json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -100,14 +80,14 @@ async function deposit(req: Request, res: Response): Promise<void> {
  *
  * `POST /api/accounts/:id/withdraw`
  *
- * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
+ * @param req - Express request with the account ID in `params.id` and `amount_cents` in the JSON body (validated by {@link amountSchema}).
  * @param res - Returns the updated account with status 200, or an error with status 400.
  */
 async function withdraw(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
-    const { amount } = req.body;
-    const account = await AccountService.withdraw(accountId, Number(amount));
+    const { amount_cents } = req.body as { amount_cents: number };
+    const account = await AccountService.withdraw(accountId, amount_cents);
     res.json(account);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
@@ -120,18 +100,14 @@ async function withdraw(req: Request, res: Response): Promise<void> {
  * `POST /api/accounts/:id/transfer`
  *
  * @param req - Express request with the source account ID in `params.id`, and
- *              `toAccountId` and `amount` in the JSON body.
+ *              `toAccountId` and `amount_cents` in the JSON body (validated by {@link transferSchema}).
  * @param res - Returns both updated accounts with status 200, or an error with status 400.
  */
 async function transfer(req: Request, res: Response): Promise<void> {
   try {
     const fromAccountId = Number(req.params.id);
-    const { toAccountId, amount } = req.body;
-    if (toAccountId === undefined || amount === undefined) {
-      res.status(400).json({ error: 'toAccountId and amount are required' });
-      return;
-    }
-    const result = await AccountService.transfer(fromAccountId, Number(toAccountId), Number(amount));
+    const { toAccountId, amount_cents } = req.body as { toAccountId: number; amount_cents: number };
+    const result = await AccountService.transfer(fromAccountId, toAccountId, amount_cents);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });

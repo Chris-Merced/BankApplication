@@ -10,11 +10,11 @@ async function getCollection(): Promise<Collection<Transaction>> {
 async function create(
   accountId: number,
   txnType: TransactionType,
-  amount: number,
+  amountCents: number,
   relatedAccountId: number | null = null,
 ): Promise<Transaction> {
   const collection = await getCollection();
-  const txn = new Transaction(Date.now(), accountId, txnType, amount, relatedAccountId);
+  const txn = new Transaction(Date.now(), accountId, txnType, amountCents, relatedAccountId);
   await collection.insertOne(txn);
   return txn;
 }

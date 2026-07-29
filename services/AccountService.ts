@@ -29,28 +29,28 @@ async function getAccountsByUser(userId: number): Promise<Account[]> {
   return accountRepository.findByUserId(userId);
 }
 
-async function deposit(accountId: number, amount: number): Promise<Account> {
-  if (amount <= 0) {
-    throw new Error('Deposit amount must be positive');
+async function deposit(accountId: number, amountCents: number): Promise<Account> {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    throw new Error('Deposit amount_cents must be a positive integer');
   }
   const account = await getAccount(accountId);
-  const updatedAccount: Account = { ...account, balance: Number(account.balance) + Number(amount) };
+  const updatedAccount: Account = { ...account, balance_cents: account.balance_cents + amountCents };
   await accountRepository.update(updatedAccount);
-  await transactionRepository.create(accountId, 'DEPOSIT', amount);
+  await transactionRepository.create(accountId, 'DEPOSIT', amountCents);
   return updatedAccount;
 }
 
-async function withdraw(accountId: number, amount: number): Promise<Account> {
-  if (amount <= 0) {
-    throw new Error('Withdrawal amount must be positive');
+async function withdraw(accountId: number, amountCents: number): Promise<Account> {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    throw new Error('Withdrawal amount_cents must be a positive integer');
   }
   const account = await getAccount(accountId);
-  if (account.balance < amount) {
+  if (account.balance_cents < amountCents) {
     throw new Error('Insufficient funds');
   }
-  const updatedAccount: Account = { ...account, balance: Number(account.balance) - Number(amount) };
+  const updatedAccount: Account = { ...account, balance_cents: account.balance_cents - amountCents };
   await accountRepository.update(updatedAccount);
-  await transactionRepository.create(accountId, 'WITHDRAWAL', amount);
+  await transactionRepository.create(accountId, 'WITHDRAWAL', amountCents);
   return updatedAccount;
 }
 
@@ -67,25 +67,25 @@ export interface TransferResult {
  * The movement is recorded as a pair of transactions — TRANSFER_OUT on the
  * source and TRANSFER_IN on the destination — each pointing at the other account.
  */
-async function transfer(fromAccountId: number, toAccountId: number, amount: number): Promise<TransferResult> {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error('Transfer amount must be a positive number');
+async function transfer(fromAccountId: number, toAccountId: number, amountCents: number): Promise<TransferResult> {
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    throw new Error('Transfer amount_cents must be a positive integer');
   }
   if (fromAccountId === toAccountId) {
     throw new Error('Cannot transfer to the same account');
   }
   const from = await getAccount(fromAccountId);
   const to = await getAccount(toAccountId);
-  if (from.balance < amount) {
+  if (from.balance_cents < amountCents) {
     throw new Error('Insufficient funds');
   }
 
-  const updatedFrom: Account = { ...from, balance: Number(from.balance) - Number(amount) };
-  const updatedTo: Account = { ...to, balance: Number(to.balance) + Number(amount) };
+  const updatedFrom: Account = { ...from, balance_cents: from.balance_cents - amountCents };
+  const updatedTo: Account = { ...to, balance_cents: to.balance_cents + amountCents };
   await accountRepository.update(updatedFrom);
   await accountRepository.update(updatedTo);
-  await transactionRepository.create(fromAccountId, 'TRANSFER_OUT', amount, toAccountId);
-  await transactionRepository.create(toAccountId, 'TRANSFER_IN', amount, fromAccountId);
+  await transactionRepository.create(fromAccountId, 'TRANSFER_OUT', amountCents, toAccountId);
+  await transactionRepository.create(toAccountId, 'TRANSFER_IN', amountCents, fromAccountId);
 
   return { from: updatedFrom, to: updatedTo };
 }
@@ -101,7 +101,7 @@ async function getTransactions(accountId: number): Promise<Transaction[]> {
  */
 async function deleteAccount(accountId: number): Promise<void> {
   const account = await getAccount(accountId);
-  if (account.balance !== 0) {
+  if (account.balance_cents !== 0) {
     throw new Error('Cannot delete an account with a non-zero balance');
   }
   await transactionRepository.deleteByAccountId(accountId);

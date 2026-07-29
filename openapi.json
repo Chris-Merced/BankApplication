@@ -594,13 +594,13 @@
       },
       "AmountRequest": {
         "type": "object",
-        "required": ["amount"],
+        "required": ["amount_cents"],
         "additionalProperties": false,
         "properties": {
-          "amount": {
-            "type": "number",
+          "amount_cents": {
+            "type": "integer",
             "exclusiveMinimum": 0,
-            "example": 100
+            "example": 10000
           }
         }
       },
@@ -684,7 +684,7 @@
       },
       "TransferRequest": {
         "type": "object",
-        "required": ["toAccountId", "amount"],
+        "required": ["toAccountId", "amount_cents"],
         "additionalProperties": false,
         "properties": {
           "toAccountId": {
@@ -693,10 +693,10 @@
             "description": "Destination account ID. Must differ from the account in the path.",
             "example": 2
           },
-          "amount": {
-            "type": "number",
+          "amount_cents": {
+            "type": "integer",
             "exclusiveMinimum": 0,
-            "example": 100
+            "example": 10000
           }
         }
       },
@@ -720,7 +720,7 @@
           "account_id",
           "user_id",
           "account_type",
-          "balance",
+          "balance_cents",
           "created_at"
         ],
         "properties": {
@@ -737,9 +737,9 @@
             "enum": ["CHECKING", "SAVINGS"],
             "example": "CHECKING"
           },
-          "balance": {
-            "type": "number",
-            "example": 100
+          "balance_cents": {
+            "type": "integer",
+            "example": 10000
           },
           "created_at": {
             "type": "string",
@@ -754,7 +754,7 @@
           "txn_id",
           "account_id",
           "txn_type",
-          "amount",
+          "amount_cents",
           "related_account_id",
           "created_at"
         ],
@@ -772,9 +772,9 @@
             "enum": ["DEPOSIT", "WITHDRAWAL", "TRANSFER_IN", "TRANSFER_OUT"],
             "example": "DEPOSIT"
           },
-          "amount": {
-            "type": "number",
-            "example": 100
+          "amount_cents": {
+            "type": "integer",
+            "example": 10000
           },
           "related_account_id": {
             "type": ["integer", "null"],

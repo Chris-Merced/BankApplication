@@ -7,16 +7,12 @@ import { toPublicUser } from '../models/user';
  *
  * `POST /api/users`
  *
- * @param req - Express request with `name`, `email`, and `password` in the JSON body.
+ * @param req - Express request with `name`, `email`, and `password` in the JSON body (validated by {@link createUserSchema}).
  * @param res - Returns the created user with status 201, or an error with status 400.
  */
 async function createUser(req: Request, res: Response): Promise<void> {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      res.status(400).json({ error: 'name, email, and password are required' });
-      return;
-    }
+    const { name, email, password } = req.body as { name: string; email: string; password: string };
     const user = await UserService.createUser(name, email, password);
     res.status(201).json(toPublicUser(user));
   } catch (err) {
@@ -29,17 +25,13 @@ async function createUser(req: Request, res: Response): Promise<void> {
  *
  * `POST /api/users/login`
  *
- * @param req - Express request with `email` and `password` in the JSON body.
+ * @param req - Express request with `email` and `password` in the JSON body (validated by {@link loginSchema}).
  * @param res - Returns the authenticated user (never the password hash) with
  *              status 200, or an error with status 401.
  */
 async function login(req: Request, res: Response): Promise<void> {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      res.status(400).json({ error: 'email and password are required' });
-      return;
-    }
+    const { email, password } = req.body as { email: string; password: string };
     const user = await UserService.login(email, password);
     res.json(toPublicUser(user));
   } catch (err) {
@@ -83,17 +75,13 @@ async function getUsers(req: Request, res: Response): Promise<void> {
  *
  * `PATCH /api/users/:id`
  *
- * @param req - Express request with the user ID in `params.id` and optional `name`/`email` in the JSON body.
+ * @param req - Express request with the user ID in `params.id` and optional `name`/`email` in the JSON body (validated by {@link updateUserSchema}).
  * @param res - Returns the updated user with status 200, or an error with status 400.
  */
 async function updateUser(req: Request, res: Response): Promise<void> {
   try {
     const userId = Number(req.params.id);
-    const { name, email } = req.body;
-    if (name === undefined && email === undefined) {
-      res.status(400).json({ error: 'name and/or email must be provided' });
-      return;
-    }
+    const { name, email } = req.body as { name?: string; email?: string };
     const user = await UserService.updateUser(userId, { name, email });
     res.json(toPublicUser(user));
   } catch (err) {

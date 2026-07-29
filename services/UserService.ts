@@ -95,7 +95,7 @@ async function updateUser(userId: number, updates: UpdateUserInput): Promise<Use
 async function deleteUser(userId: number): Promise<void> {
   await getUserById(userId);
   const accounts = await accountRepository.findByUserId(userId);
-  const nonZero = accounts.find((a) => a.balance !== 0);
+  const nonZero = accounts.find((a) => a.balance_cents !== 0);
   if (nonZero) {
     throw new Error(`Cannot delete user: account ${nonZero.account_id} has a non-zero balance`);
   }

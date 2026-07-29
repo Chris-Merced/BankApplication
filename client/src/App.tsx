@@ -57,11 +57,17 @@ export default function App() {
     return date.toLocaleString();
   }
 
-  function format_currency(amount: number): string {
-    if (isNaN(amount)){
+  // Accepts cents (the wire/storage unit) and renders it as a dollar amount
+  function format_currency(amountCents: number): string {
+    if (isNaN(amountCents)){
       return "";
     }
-    return `$${amount.toFixed(2)}`;
+    return `$${(amountCents / 100).toFixed(2)}`;
+  }
+
+  // The UI collects dollar amounts from the user; the API speaks in integer cents
+  function dollars_to_cents(dollars: string): number {
+    return Math.round(Number(dollars) * 100);
   }
 
   function getRecentDelta(transactions: Transaction[], unit: 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' = 'month', amount = 1): number {
@@ -91,11 +97,11 @@ export default function App() {
       }
 
       if (tx.txn_type === 'DEPOSIT') {
-        return sum + tx.amount;
+        return sum + tx.amount_cents;
       }
 
       if (tx.txn_type === 'WITHDRAWAL') {
-        return sum - tx.amount;
+        return sum - tx.amount_cents;
       }
 
       return sum;
@@ -211,7 +217,7 @@ export default function App() {
                 .sort((a, b) => a.account_id - b.account_id)
                 .map((a) => (
                   <option key={a.account_id} value={a.account_id}>
-                    {a.account_type} #{a.account_id} — {format_currency(a.balance)}
+                    {a.account_type} #{a.account_id} — {format_currency(a.balance_cents)}
                   </option>
                 ))}
             </select>
@@ -219,10 +225,10 @@ export default function App() {
               Refresh
             </button>
             <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amount" />
-            <button onClick={() => run(async () => upsertAccount(await api.deposit(selectedAccountId!, Number(amount))))}>
+            <button onClick={() => run(async () => upsertAccount(await api.deposit(selectedAccountId!, dollars_to_cents(amount))))}>
               Deposit
             </button>
-            <button onClick={() => run(async () => upsertAccount(await api.withdraw(selectedAccountId!, Number(amount))))}>
+            <button onClick={() => run(async () => upsertAccount(await api.withdraw(selectedAccountId!, dollars_to_cents(amount))))}>
               Withdraw
             </button>
             <button
@@ -269,7 +275,7 @@ export default function App() {
               const { from, to } = await api.transfer(
                 Number(transferFromInput),
                 Number(transferToInput),
-                Number(transferAmount),
+                dollars_to_cents(transferAmount),
               );
               upsertAccount(from);
               upsertAccount(to);
@@ -308,7 +314,7 @@ export default function App() {
                       <td>{a.account_id}</td>
                       <td>{a.user_id}</td>
                       <td>{a.account_type}</td>
-                      <td>{format_currency(a.balance)}</td>
+                      <td>{format_currency(a.balance_cents)}</td>
                       <td>{format_time(a.created_at)}</td>
                     </tr>
                   );
