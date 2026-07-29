@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Bank Application API",
-    "version": "1.0.0",
-    "description": "API for creating bank accounts, moving funds, and viewing transaction history."
+    "version": "2.0.0",
+    "description": "Authenticated API for managing bank accounts. All money values are integer cents, and transaction history is immutable."
   },
   "servers": [
     {
@@ -13,16 +13,16 @@
   ],
   "tags": [
     {
-      "name": "System",
-      "description": "API status and health"
+      "name": "System"
     },
     {
-      "name": "Accounts",
-      "description": "Bank account operations"
+      "name": "Authentication"
     },
     {
-      "name": "Users",
-      "description": "User management"
+      "name": "Users"
+    },
+    {
+      "name": "Accounts"
     }
   ],
   "paths": {
@@ -48,11 +48,21 @@
     "/health": {
       "get": {
         "tags": ["System"],
-        "summary": "Check API health",
+        "summary": "Check application and database readiness",
         "operationId": "getHealth",
         "responses": {
           "200": {
-            "description": "The API is healthy",
+            "description": "The application is ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "MongoDB is unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -64,12 +74,195 @@
         }
       }
     },
+    "/health/live": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Check process liveness",
+        "operationId": "getLiveness",
+        "responses": {
+          "200": {
+            "description": "The process is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Liveness"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a user",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered and authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Log in",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get the authenticated user",
+        "operationId": "getCurrentUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update the authenticated user",
+        "operationId": "updateCurrentUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Close the authenticated user",
+        "description": "Closes the user and all zero-balance accounts. Accounts and transactions are retained.",
+        "operationId": "closeCurrentUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User closed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
     "/api/accounts": {
       "post": {
         "tags": ["Accounts"],
-        "summary": "Create an account",
-        "description": "Creates an account for an existing user.",
+        "summary": "Create an account for the authenticated user",
         "operationId": "createAccount",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -93,6 +286,9 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }
@@ -100,8 +296,13 @@
     "/api/accounts/{id}": {
       "get": {
         "tags": ["Accounts"],
-        "summary": "Get an account",
+        "summary": "Get an owned account",
         "operationId": "getAccount",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountId"
@@ -118,6 +319,12 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           }
@@ -125,9 +332,14 @@
       },
       "delete": {
         "tags": ["Accounts"],
-        "summary": "Delete an account",
-        "description": "Deletes an account and cascades to its transaction history. The account balance must be zero.",
-        "operationId": "deleteAccount",
+        "summary": "Close an owned account",
+        "description": "The balance must be zero. The account and transaction history are retained.",
+        "operationId": "closeAccount",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountId"
@@ -135,10 +347,19 @@
         ],
         "responses": {
           "204": {
-            "description": "Account deleted"
+            "description": "Account closed"
           },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -146,36 +367,42 @@
     "/api/accounts/{id}/deposit": {
       "post": {
         "tags": ["Accounts"],
-        "summary": "Deposit funds",
+        "summary": "Deposit funds into an owned account",
         "operationId": "deposit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AmountRequest"
-              }
-            }
-          }
+          "$ref": "#/components/requestBodies/Amount"
         },
         "responses": {
           "200": {
-            "description": "Funds deposited",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Account"
-                }
-              }
-            }
+            "$ref": "#/components/responses/AccountUpdated"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -183,36 +410,42 @@
     "/api/accounts/{id}/withdraw": {
       "post": {
         "tags": ["Accounts"],
-        "summary": "Withdraw funds",
+        "summary": "Withdraw funds from an owned account",
         "operationId": "withdraw",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AmountRequest"
-              }
-            }
-          }
+          "$ref": "#/components/requestBodies/Amount"
         },
         "responses": {
           "200": {
-            "description": "Funds withdrawn",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Account"
-                }
-              }
-            }
+            "$ref": "#/components/responses/AccountUpdated"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -220,12 +453,19 @@
     "/api/accounts/{id}/transfer": {
       "post": {
         "tags": ["Accounts"],
-        "summary": "Transfer funds to another account",
-        "description": "Moves funds from the account in the path to another account of any type. Both accounts must exist, they must be different, and the source must have sufficient funds; otherwise no balance changes.",
+        "summary": "Transfer funds from an owned account",
         "operationId": "transfer",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -240,7 +480,7 @@
         },
         "responses": {
           "200": {
-            "description": "Funds transferred",
+            "description": "Transfer completed",
             "content": {
               "application/json": {
                 "schema": {
@@ -251,6 +491,18 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -258,8 +510,13 @@
     "/api/accounts/{id}/transactions": {
       "get": {
         "tags": ["Accounts"],
-        "summary": "List account transactions",
+        "summary": "List immutable transaction history for an owned account",
         "operationId": "getTransactions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/AccountId"
@@ -267,7 +524,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Transaction history",
+            "description": "Transactions in newest-first order",
             "content": {
               "application/json": {
                 "schema": {
@@ -279,206 +536,61 @@
               }
             }
           },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/accounts/{id}/transactions/{txnId}": {
-      "delete": {
-        "tags": ["Accounts"],
-        "summary": "Delete a transaction",
-        "description": "Deletes a single transaction from an account's history.",
-        "operationId": "deleteTransaction",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/AccountId"
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
-          {
-            "$ref": "#/components/parameters/TransactionId"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Transaction deleted"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      }
-    },
-    "/api/users": {
-      "post": {
-        "tags": ["Users"],
-        "summary": "Create a user",
-        "description": "Creates a new user.",
-        "operationId": "createUser",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateUserRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "User created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      },
-      "get": {
-        "tags": ["Users"],
-        "summary": "List users",
-        "operationId": "getUsers",
-        "responses": {
-          "200": {
-            "description": "List of users",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/users/{id}": {
-      "get": {
-        "tags": ["Users"],
-        "summary": "Get a user",
-        "operationId": "getUser",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/UserId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "User found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
-          }
-        }
-      },
-      "patch": {
-        "tags": ["Users"],
-        "summary": "Update a user",
-        "description": "Updates a user's name and/or email. At least one field must be provided.",
-        "operationId": "updateUser",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/UserId"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateUserRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "User updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      },
-      "delete": {
-        "tags": ["Users"],
-        "summary": "Delete a user",
-        "description": "Deletes a user and cascades to their accounts and transaction history. Every account must have a zero balance.",
-        "operationId": "deleteUser",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/UserId"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "User deleted"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
           }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "parameters": {
       "AccountId": {
         "name": "id",
         "in": "path",
         "required": true,
-        "description": "Account ID",
+        "description": "Numeric account ID",
         "schema": {
           "type": "integer",
           "minimum": 1
-        },
-        "example": 1
+        }
       },
-      "UserId": {
-        "name": "id",
-        "in": "path",
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
         "required": true,
-        "description": "User ID",
+        "description": "A unique key between 8 and 128 characters. Reusing it cannot apply the money operation twice.",
         "schema": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "example": 1
-      },
-      "TransactionId": {
-        "name": "txnId",
-        "in": "path",
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "example": "6748302e-08c5-4ce9-966a-bef8479aec15"
+        }
+      }
+    },
+    "requestBodies": {
+      "Amount": {
         "required": true,
-        "description": "Transaction ID",
-        "schema": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "example": 1
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AmountRequest"
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -489,29 +601,145 @@
           "message": {
             "type": "string",
             "example": "Bank Application API is running"
-          }
-        }
-      },
-      "Health": {
-        "type": "object",
-        "required": ["status"],
-        "properties": {
+          },
           "status": {
             "type": "string",
             "example": "ok"
           }
         }
       },
-      "CreateAccountRequest": {
+      "Health": {
         "type": "object",
-        "required": ["userId", "accountType"],
+        "required": ["status", "database"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok", "unavailable"]
+          },
+          "database": {
+            "type": "string",
+            "enum": ["connected", "disconnected"]
+          }
+        }
+      },
+      "Liveness": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok"]
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["name", "email", "password"],
         "additionalProperties": false,
         "properties": {
-          "userId": {
-            "type": "integer",
-            "minimum": 1,
-            "example": 1
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Alice Johnson"
           },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "alice@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "example": "correct-horse-battery-staple"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "alice@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "correct-horse-battery-staple"
+          }
+        }
+      },
+      "AuthResult": {
+        "type": "object",
+        "required": ["user", "token"],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "token": {
+            "type": "string",
+            "description": "One-hour JWT access token"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "email",
+          "status",
+          "created_at",
+          "closed_at"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "CLOSED"]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closed_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "CreateAccountRequest": {
+        "type": "object",
+        "required": ["accountType"],
+        "additionalProperties": false,
+        "properties": {
           "accountType": {
             "type": "string",
             "enum": ["CHECKING", "SAVINGS"],
@@ -521,92 +749,30 @@
       },
       "AmountRequest": {
         "type": "object",
-        "required": ["amount"],
+        "required": ["amountCents"],
         "additionalProperties": false,
         "properties": {
-          "amount": {
-            "type": "number",
-            "exclusiveMinimum": 0,
-            "example": 100
-          }
-        }
-      },
-      "CreateUserRequest": {
-        "type": "object",
-        "required": ["name", "email", "password"],
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "Frank Ortiz"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "example": "frank@example.com"
-          },
-          "password": {
-            "type": "string",
-            "minLength": 8,
-            "example": "correct-horse-battery"
-          }
-        }
-      },
-      "User": {
-        "type": "object",
-        "required": ["user_id", "name", "email", "created_at"],
-        "properties": {
-          "user_id": {
+          "amountCents": {
             "type": "integer",
-            "example": 6
-          },
-          "name": {
-            "type": "string",
-            "example": "Frank Ortiz"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "example": "frank@example.com"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-07-28T12:00:00.000Z"
-          }
-        }
-      },
-      "UpdateUserRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "minProperties": 1,
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "Frank Ortiz"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "example": "frank@example.com"
+            "minimum": 1,
+            "description": "Amount in the smallest currency unit",
+            "example": 10000
           }
         }
       },
       "TransferRequest": {
         "type": "object",
-        "required": ["toAccountId", "amount"],
+        "required": ["toAccountId", "amountCents"],
         "additionalProperties": false,
         "properties": {
           "toAccountId": {
             "type": "integer",
-            "minimum": 1,
-            "description": "Destination account ID. Must differ from the account in the path.",
-            "example": 2
+            "minimum": 1
           },
-          "amount": {
-            "type": "number",
-            "exclusiveMinimum": 0,
-            "example": 100
+          "amountCents": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 5000
           }
         }
       },
@@ -615,12 +781,10 @@
         "required": ["from", "to"],
         "properties": {
           "from": {
-            "$ref": "#/components/schemas/Account",
-            "description": "Source account after the debit"
+            "$ref": "#/components/schemas/Account"
           },
           "to": {
-            "$ref": "#/components/schemas/Account",
-            "description": "Destination account after the credit"
+            "$ref": "#/components/schemas/Account"
           }
         }
       },
@@ -630,31 +794,38 @@
           "account_id",
           "user_id",
           "account_type",
-          "balance",
-          "created_at"
+          "balance_cents",
+          "status",
+          "created_at",
+          "closed_at"
         ],
         "properties": {
           "account_id": {
-            "type": "integer",
-            "example": 1
+            "type": "integer"
           },
           "user_id": {
-            "type": "integer",
-            "example": 1
+            "type": "integer"
           },
           "account_type": {
             "type": "string",
-            "enum": ["CHECKING", "SAVINGS"],
-            "example": "CHECKING"
+            "enum": ["CHECKING", "SAVINGS"]
           },
-          "balance": {
-            "type": "number",
-            "example": 100
+          "balance_cents": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 12550
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ACTIVE", "CLOSED"]
           },
           "created_at": {
             "type": "string",
-            "format": "date-time",
-            "example": "2026-07-28T12:00:00.000Z"
+            "format": "date-time"
+          },
+          "closed_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
           }
         }
       },
@@ -664,37 +835,41 @@
           "txn_id",
           "account_id",
           "txn_type",
-          "amount",
+          "amount_cents",
           "related_account_id",
           "created_at"
         ],
         "properties": {
           "txn_id": {
-            "type": "integer",
-            "example": 1
+            "type": "integer"
           },
           "account_id": {
-            "type": "integer",
-            "example": 1
+            "type": "integer"
           },
           "txn_type": {
             "type": "string",
-            "enum": ["DEPOSIT", "WITHDRAWAL", "TRANSFER_IN", "TRANSFER_OUT"],
-            "example": "DEPOSIT"
+            "enum": [
+              "DEPOSIT",
+              "WITHDRAWAL",
+              "TRANSFER_IN",
+              "TRANSFER_OUT"
+            ]
           },
-          "amount": {
-            "type": "number",
-            "example": 100
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 1
           },
           "related_account_id": {
             "type": ["integer", "null"],
-            "description": "The counterparty account on a transfer; null for deposits and withdrawals.",
-            "example": null
+            "minimum": 1
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "Present on deposits, withdrawals, and outgoing transfers."
           },
           "created_at": {
             "type": "string",
-            "format": "date-time",
-            "example": "2026-07-28T12:05:00.000Z"
+            "format": "date-time"
           }
         }
       },
@@ -703,15 +878,44 @@
         "required": ["error"],
         "properties": {
           "error": {
-            "type": "string",
-            "example": "Account not found"
+            "type": "string"
           }
         }
       }
     },
     "responses": {
+      "AccountUpdated": {
+        "description": "Updated account",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Account"
+            }
+          }
+        }
+      },
       "BadRequest": {
-        "description": "The request could not be completed",
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid, or expired access token",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The authenticated user does not own this resource",
         "content": {
           "application/json": {
             "schema": {
@@ -721,7 +925,17 @@
         }
       },
       "NotFound": {
-        "description": "The requested account was not found",
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The request conflicts with the current resource state",
         "content": {
           "application/json": {
             "schema": {

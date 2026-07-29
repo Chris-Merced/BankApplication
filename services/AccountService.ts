@@ -1,48 +1,146 @@
-import userRepository from '../repositories/userRepository';
-import accountRepository from '../repositories/accountRepository';
-import transactionRepository from '../repositories/transactionRepository';
+import { ClientSession, MongoServerError } from 'mongodb';
+import { runInTransaction } from '../db/mongo';
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../errors/AppError';
 import { Account, AccountType } from '../models/account';
 import { Transaction } from '../models/transaction';
+import accountRepository from '../repositories/accountRepository';
+import transactionRepository from '../repositories/transactionRepository';
+import userRepository from '../repositories/userRepository';
 
-async function createAccount(userId: number, accountType: AccountType): Promise<Account> {
-  const user = await userRepository.findById(userId);
-  if (!user) {
-    throw new Error('User not found');
+function validateAmountCents(amountCents: number): void {
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw new BadRequestError('amountCents must be a positive integer');
   }
-  return accountRepository.create(userId, accountType);
 }
 
-async function getAccount(accountId: number): Promise<Account> {
-  const account = await accountRepository.findById(accountId);
+function validateIdempotencyKey(idempotencyKey: string): void {
+  if (
+    typeof idempotencyKey !== 'string' ||
+    idempotencyKey.length < 8 ||
+    idempotencyKey.length > 128
+  ) {
+    throw new BadRequestError(
+      'Idempotency-Key must be between 8 and 128 characters',
+    );
+  }
+}
+
+function mapIdempotencyConflict(error: unknown): never {
+  if (error instanceof MongoServerError && error.code === 11000) {
+    throw new ConflictError(
+      'A money operation with this Idempotency-Key was already processed',
+    );
+  }
+  throw error;
+}
+
+async function requireOwnedAccount(
+  accountId: number,
+  userId: number,
+  session?: ClientSession,
+  requireActive = false,
+): Promise<Account> {
+  const account = await accountRepository.findById(accountId, session);
   if (!account) {
-    throw new Error('Account not found');
+    throw new NotFoundError('Account not found');
+  }
+  if (account.user_id !== userId) {
+    throw new ForbiddenError();
+  }
+  if (requireActive && account.status !== 'ACTIVE') {
+    throw new ConflictError('Account is closed');
   }
   return account;
 }
 
-async function deposit(accountId: number, amount: number): Promise<Account> {
-  if (amount <= 0) {
-    throw new Error('Deposit amount must be positive');
+async function createAccount(
+  userId: number,
+  accountType: AccountType,
+): Promise<Account> {
+  const user = await userRepository.findById(userId);
+  if (!user || user.status !== 'ACTIVE') {
+    throw new NotFoundError('User not found');
   }
-  const account = await getAccount(accountId);
-  const updatedAccount: Account = { ...account, balance: Number(account.balance) + Number(amount) };
-  await accountRepository.update(updatedAccount);
-  await transactionRepository.create(accountId, 'DEPOSIT', amount);
-  return updatedAccount;
+  return accountRepository.create(userId, accountType);
 }
 
-async function withdraw(accountId: number, amount: number): Promise<Account> {
-  if (amount <= 0) {
-    throw new Error('Withdrawal amount must be positive');
+async function getAccount(accountId: number, userId: number): Promise<Account> {
+  return requireOwnedAccount(accountId, userId);
+}
+
+async function deposit(
+  accountId: number,
+  userId: number,
+  amountCents: number,
+  idempotencyKey: string,
+): Promise<Account> {
+  validateAmountCents(amountCents);
+  validateIdempotencyKey(idempotencyKey);
+
+  try {
+    return await runInTransaction(async (session) => {
+      await requireOwnedAccount(accountId, userId, session, true);
+      const updated = await accountRepository.adjustBalance(
+        accountId,
+        amountCents,
+        session,
+      );
+      if (!updated) {
+        throw new ConflictError('Account is closed');
+      }
+      await transactionRepository.create(
+        accountId,
+        'DEPOSIT',
+        amountCents,
+        null,
+        session,
+        idempotencyKey,
+      );
+      return updated;
+    });
+  } catch (error) {
+    return mapIdempotencyConflict(error);
   }
-  const account = await getAccount(accountId);
-  if (account.balance < amount) {
-    throw new Error('Insufficient funds');
+}
+
+async function withdraw(
+  accountId: number,
+  userId: number,
+  amountCents: number,
+  idempotencyKey: string,
+): Promise<Account> {
+  validateAmountCents(amountCents);
+  validateIdempotencyKey(idempotencyKey);
+
+  try {
+    return await runInTransaction(async (session) => {
+      await requireOwnedAccount(accountId, userId, session, true);
+      const updated = await accountRepository.adjustBalance(
+        accountId,
+        -amountCents,
+        session,
+      );
+      if (!updated) {
+        throw new ConflictError('Insufficient funds');
+      }
+      await transactionRepository.create(
+        accountId,
+        'WITHDRAWAL',
+        amountCents,
+        null,
+        session,
+        idempotencyKey,
+      );
+      return updated;
+    });
+  } catch (error) {
+    return mapIdempotencyConflict(error);
   }
-  const updatedAccount: Account = { ...account, balance: Number(account.balance) - Number(amount) };
-  await accountRepository.update(updatedAccount);
-  await transactionRepository.create(accountId, 'WITHDRAWAL', amount);
-  return updatedAccount;
 }
 
 export interface TransferResult {
@@ -50,62 +148,92 @@ export interface TransferResult {
   to: Account;
 }
 
-/**
- * Moves funds between two accounts of any type (CHECKING or SAVINGS).
- *
- * Every check runs before either balance is written, so a rejected transfer
- * leaves both accounts untouched rather than debiting without crediting.
- * The movement is recorded as a pair of transactions — TRANSFER_OUT on the
- * source and TRANSFER_IN on the destination — each pointing at the other account.
- */
-async function transfer(fromAccountId: number, toAccountId: number, amount: number): Promise<TransferResult> {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error('Transfer amount must be a positive number');
-  }
+async function transfer(
+  fromAccountId: number,
+  userId: number,
+  toAccountId: number,
+  amountCents: number,
+  idempotencyKey: string,
+): Promise<TransferResult> {
+  validateAmountCents(amountCents);
+  validateIdempotencyKey(idempotencyKey);
   if (fromAccountId === toAccountId) {
-    throw new Error('Cannot transfer to the same account');
-  }
-  const from = await getAccount(fromAccountId);
-  const to = await getAccount(toAccountId);
-  if (from.balance < amount) {
-    throw new Error('Insufficient funds');
+    throw new BadRequestError('Cannot transfer to the same account');
   }
 
-  const updatedFrom: Account = { ...from, balance: Number(from.balance) - Number(amount) };
-  const updatedTo: Account = { ...to, balance: Number(to.balance) + Number(amount) };
-  await accountRepository.update(updatedFrom);
-  await accountRepository.update(updatedTo);
-  await transactionRepository.create(fromAccountId, 'TRANSFER_OUT', amount, toAccountId);
-  await transactionRepository.create(toAccountId, 'TRANSFER_IN', amount, fromAccountId);
+  try {
+    return await runInTransaction(async (session) => {
+      await requireOwnedAccount(fromAccountId, userId, session, true);
+      const destination = await accountRepository.findById(toAccountId, session);
+      if (!destination) {
+        throw new NotFoundError('Destination account not found');
+      }
+      if (destination.status !== 'ACTIVE') {
+        throw new ConflictError('Destination account is closed');
+      }
 
-  return { from: updatedFrom, to: updatedTo };
+      const updatedFrom = await accountRepository.adjustBalance(
+        fromAccountId,
+        -amountCents,
+        session,
+      );
+      if (!updatedFrom) {
+        throw new ConflictError('Insufficient funds');
+      }
+
+      const updatedTo = await accountRepository.adjustBalance(
+        toAccountId,
+        amountCents,
+        session,
+      );
+      if (!updatedTo) {
+        throw new ConflictError('Destination account is closed');
+      }
+
+      await transactionRepository.create(
+        fromAccountId,
+        'TRANSFER_OUT',
+        amountCents,
+        toAccountId,
+        session,
+        idempotencyKey,
+      );
+      await transactionRepository.create(
+        toAccountId,
+        'TRANSFER_IN',
+        amountCents,
+        fromAccountId,
+        session,
+      );
+
+      return { from: updatedFrom, to: updatedTo };
+    });
+  } catch (error) {
+    return mapIdempotencyConflict(error);
+  }
 }
 
-async function getTransactions(accountId: number): Promise<Transaction[]> {
-  await getAccount(accountId);
+async function getTransactions(
+  accountId: number,
+  userId: number,
+): Promise<Transaction[]> {
+  await requireOwnedAccount(accountId, userId);
   return transactionRepository.findByAccountId(accountId);
 }
 
-/**
- * Deletes an account. The balance must be zero first, mirroring how a real
- * bank requires an account to be emptied before it can be closed.
- */
-async function deleteAccount(accountId: number): Promise<void> {
-  const account = await getAccount(accountId);
-  if (account.balance !== 0) {
-    throw new Error('Cannot delete an account with a non-zero balance');
-  }
-  await transactionRepository.deleteByAccountId(accountId);
-  await accountRepository.deleteById(accountId);
-}
-
-async function deleteTransaction(accountId: number, txnId: number): Promise<void> {
-  await getAccount(accountId);
-  const txn = await transactionRepository.findById(txnId);
-  if (!txn || txn.account_id !== accountId) {
-    throw new Error('Transaction not found');
-  }
-  await transactionRepository.deleteById(txnId);
+async function closeAccount(accountId: number, userId: number): Promise<void> {
+  await runInTransaction(async (session) => {
+    const account = await requireOwnedAccount(accountId, userId, session, true);
+    if (account.balance_cents !== 0) {
+      throw new ConflictError(
+        'Cannot close an account with a non-zero balance',
+      );
+    }
+    const closed = await accountRepository.closeById(accountId, session);
+    if (!closed) {
+      throw new ConflictError('Account could not be closed');
+    }
+  });
 }
 
 export default {
@@ -115,6 +243,5 @@ export default {
   withdraw,
   transfer,
   getTransactions,
-  deleteAccount,
-  deleteTransaction,
+  closeAccount,
 };

@@ -1,40 +1,67 @@
 import bcrypt from 'bcryptjs';
-import userRepository from '../repositories/userRepository';
-import accountRepository from '../repositories/accountRepository';
-import AccountService from './AccountService';
+import { MongoServerError } from 'mongodb';
+import { runInTransaction } from '../db/mongo';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from '../errors/AppError';
 import { User } from '../models/user';
+import accountRepository from '../repositories/accountRepository';
+import userRepository from '../repositories/userRepository';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SALT_ROUNDS = 10; // Length of salt in hashed password
+const SALT_ROUNDS = 10;
 const MIN_PASSWORD_LENGTH = 8;
 
-async function createUser(name: string, email: string, password: string): Promise<User> {
-  if (!name.trim()) {
-    throw new Error('Name is required');
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+async function createUser(
+  name: string,
+  email: string,
+  password: string,
+): Promise<User> {
+  const normalizedName = name.trim();
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedName) {
+    throw new BadRequestError('Name is required');
   }
-  if (!EMAIL_REGEX.test(email)) {
-    throw new Error('A valid email is required');
+  if (!EMAIL_REGEX.test(normalizedEmail)) {
+    throw new BadRequestError('A valid email is required');
   }
   if (!password || password.length < MIN_PASSWORD_LENGTH) {
-    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+    throw new BadRequestError(
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    );
   }
-  if (await userRepository.findByEmail(email)) {
-    throw new Error('A user with this email already exists');
+  if (await userRepository.findByEmail(normalizedEmail)) {
+    throw new ConflictError('A user with this email already exists');
   }
-  const hashPassword = bcrypt.hashSync(password, SALT_ROUNDS);
-  return userRepository.create(name.trim(), email, hashPassword);
+
+  const hashPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  try {
+    return await userRepository.create(
+      normalizedName,
+      normalizedEmail,
+      hashPassword,
+    );
+  } catch (error) {
+    if (error instanceof MongoServerError && error.code === 11000) {
+      throw new ConflictError('A user with this email already exists');
+    }
+    throw error;
+  }
 }
 
 async function getUserById(userId: number): Promise<User> {
   const user = await userRepository.findById(userId);
-  if (!user) {
-    throw new Error('User not found');
+  if (!user || user.status !== 'ACTIVE') {
+    throw new NotFoundError('User not found');
   }
   return user;
-}
-
-async function getAllUsers(): Promise<User[]> {
-  return userRepository.findAll();
 }
 
 interface UpdateUserInput {
@@ -42,49 +69,69 @@ interface UpdateUserInput {
   email?: string;
 }
 
-async function updateUser(userId: number, updates: UpdateUserInput): Promise<User> {
+async function updateUser(
+  userId: number,
+  updates: UpdateUserInput,
+): Promise<User> {
   const user = await getUserById(userId);
 
   let name = user.name;
   if (updates.name !== undefined) {
-    if (!updates.name.trim()) {
-      throw new Error('Name is required');
-    }
     name = updates.name.trim();
+    if (!name) {
+      throw new BadRequestError('Name is required');
+    }
   }
 
   let email = user.email;
   if (updates.email !== undefined) {
-    if (!EMAIL_REGEX.test(updates.email)) {
-      throw new Error('A valid email is required');
+    email = normalizeEmail(updates.email);
+    if (!EMAIL_REGEX.test(email)) {
+      throw new BadRequestError('A valid email is required');
     }
-    const existing = await userRepository.findByEmail(updates.email);
+    const existing = await userRepository.findByEmail(email);
     if (existing && existing.user_id !== userId) {
-      throw new Error('A user with this email already exists');
+      throw new ConflictError('A user with this email already exists');
     }
-    email = updates.email;
   }
 
-  const updatedUser: User = { ...user, name, email };
-  return userRepository.update(updatedUser);
+  try {
+    const updated = await userRepository.updateProfile(userId, name, email);
+    if (!updated) {
+      throw new NotFoundError('User not found');
+    }
+    return updated;
+  } catch (error) {
+    if (error instanceof MongoServerError && error.code === 11000) {
+      throw new ConflictError('A user with this email already exists');
+    }
+    throw error;
+  }
 }
 
-/**
- * Deletes a user and cascades to their accounts and transaction history.
- * Every account is checked for a zero balance up front so the cascade is
- * all-or-nothing rather than deleting some accounts and then failing.
- */
-async function deleteUser(userId: number): Promise<void> {
-  await getUserById(userId);
-  const accounts = await accountRepository.findByUserId(userId);
-  const nonZero = accounts.find((a) => a.balance !== 0);
-  if (nonZero) {
-    throw new Error(`Cannot delete user: account ${nonZero.account_id} has a non-zero balance`);
-  }
-  for (const account of accounts) {
-    await AccountService.deleteAccount(account.account_id);
-  }
-  await userRepository.deleteById(userId);
+async function closeUser(userId: number): Promise<void> {
+  await runInTransaction(async (session) => {
+    const user = await userRepository.findById(userId, session);
+    if (!user || user.status !== 'ACTIVE') {
+      throw new NotFoundError('User not found');
+    }
+
+    const accounts = await accountRepository.findByUserId(userId, session);
+    const nonZeroAccount = accounts.find(
+      (account) => account.balance_cents !== 0,
+    );
+    if (nonZeroAccount) {
+      throw new ConflictError(
+        `Cannot close user: account ${nonZeroAccount.account_id} has a non-zero balance`,
+      );
+    }
+
+    await accountRepository.closeAllForUser(userId, session);
+    const closed = await userRepository.closeById(userId, session);
+    if (!closed) {
+      throw new NotFoundError('User not found');
+    }
+  });
 }
 
-export default { createUser, getUserById, getAllUsers, updateUser, deleteUser };
+export default { createUser, getUserById, updateUser, closeUser };

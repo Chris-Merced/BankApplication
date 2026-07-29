@@ -1,4 +1,5 @@
-import { Collection } from 'mongodb';
+import { ClientSession, Collection, Filter } from 'mongodb';
+import { getNextId } from '../db/counters';
 import { getDatabase } from '../db/mongo';
 import { Account, AccountType } from '../models/account';
 
@@ -7,41 +8,139 @@ async function getCollection(): Promise<Collection<Account>> {
   return db.collection<Account>('accounts');
 }
 
-async function create(userId: number, accountType: AccountType): Promise<Account> {
+async function create(
+  userId: number,
+  accountType: AccountType,
+  session?: ClientSession,
+): Promise<Account> {
   const collection = await getCollection();
-  const account = new Account(Date.now(), userId, accountType);
-  await collection.insertOne(account);
+  const accountId = await getNextId('accounts', session);
+  const account = new Account(accountId, userId, accountType);
+  await collection.insertOne(account, { session });
   return account;
 }
 
-async function findById(accountId: number): Promise<Account | undefined> {
+async function findById(
+  accountId: number,
+  session?: ClientSession,
+): Promise<Account | undefined> {
   const collection = await getCollection();
-  return collection.findOne({ account_id: accountId });
+  const account = await collection.findOne(
+    { account_id: accountId },
+    {
+      session,
+      projection: { _id: 0 },
+    },
+  );
+  return account ?? undefined;
 }
 
-async function findAll(): Promise<Account[]> {
+async function findAll(session?: ClientSession): Promise<Account[]> {
   const collection = await getCollection();
-  return collection.find({}).sort({ account_id: 1 }).toArray();
+  return collection
+    .find({}, { session, projection: { _id: 0 } })
+    .sort({ account_id: 1 })
+    .toArray();
 }
 
-async function findByUserId(userId: number): Promise<Account[]> {
+async function findByUserId(
+  userId: number,
+  session?: ClientSession,
+): Promise<Account[]> {
   const collection = await getCollection();
-  return collection.find({ user_id: userId }).sort({ account_id: 1 }).toArray();
+  return collection
+    .find(
+      { user_id: userId },
+      {
+        session,
+        projection: { _id: 0 },
+      },
+    )
+    .sort({ account_id: 1 })
+    .toArray();
 }
 
-async function update(account: Account): Promise<Account> {
+async function adjustBalance(
+  accountId: number,
+  deltaCents: number,
+  session: ClientSession,
+): Promise<Account | undefined> {
   const collection = await getCollection();
-  const result = await collection.updateOne({ account_id: account.account_id }, { $set: account });
-  if (result.matchedCount === 0) {
-    throw new Error('Account not found');
+  const filter: Filter<Account> = {
+    account_id: accountId,
+    status: 'ACTIVE',
+  };
+
+  if (deltaCents < 0) {
+    filter.balance_cents = { $gte: Math.abs(deltaCents) };
   }
-  return account;
+
+  const account = await collection.findOneAndUpdate(
+    filter,
+    { $inc: { balance_cents: deltaCents } },
+    {
+      session,
+      returnDocument: 'after',
+      projection: { _id: 0 },
+    },
+  );
+  return account ?? undefined;
 }
 
-async function deleteById(accountId: number): Promise<boolean> {
+async function closeById(
+  accountId: number,
+  session: ClientSession,
+): Promise<Account | undefined> {
   const collection = await getCollection();
-  const result = await collection.deleteOne({ account_id: accountId });
-  return result.deletedCount > 0;
+  const closedAt = new Date().toISOString();
+  const account = await collection.findOneAndUpdate(
+    {
+      account_id: accountId,
+      status: 'ACTIVE',
+      balance_cents: 0,
+    },
+    {
+      $set: {
+        status: 'CLOSED',
+        closed_at: closedAt,
+      },
+    },
+    {
+      session,
+      returnDocument: 'after',
+      projection: { _id: 0 },
+    },
+  );
+  return account ?? undefined;
 }
 
-export default { create, findById, findAll, findByUserId, update, deleteById };
+async function closeAllForUser(
+  userId: number,
+  session: ClientSession,
+): Promise<void> {
+  const collection = await getCollection();
+  await collection.updateMany(
+    {
+      user_id: userId,
+      status: 'ACTIVE',
+      balance_cents: 0,
+    },
+    {
+      $set: {
+        status: 'CLOSED',
+        closed_at: new Date().toISOString(),
+      },
+    },
+    { session },
+  );
+}
+
+export default {
+  create,
+  findById,
+  findAll,
+  findByUserId,
+  adjustBalance,
+  closeById,
+  closeAllForUser,
+};

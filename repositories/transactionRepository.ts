@@ -1,4 +1,5 @@
-import { Collection } from 'mongodb';
+import { ClientSession, Collection } from 'mongodb';
+import { getNextId } from '../db/counters';
 import { getDatabase } from '../db/mongo';
 import { Transaction, TransactionType } from '../models/transaction';
 
@@ -10,34 +11,40 @@ async function getCollection(): Promise<Collection<Transaction>> {
 async function create(
   accountId: number,
   txnType: TransactionType,
-  amount: number,
-  relatedAccountId: number | null = null,
+  amountCents: number,
+  relatedAccountId: number | null,
+  session: ClientSession,
+  idempotencyKey?: string,
 ): Promise<Transaction> {
   const collection = await getCollection();
-  const txn = new Transaction(Date.now(), accountId, txnType, amount, relatedAccountId);
-  await collection.insertOne(txn);
-  return txn;
+  const transactionId = await getNextId('transactions', session);
+  const transaction = new Transaction(
+    transactionId,
+    accountId,
+    txnType,
+    amountCents,
+    relatedAccountId,
+    idempotencyKey,
+  );
+  await collection.insertOne(transaction, { session });
+  return transaction;
 }
 
-async function findById(txnId: number): Promise<Transaction | undefined> {
+async function findByAccountId(
+  accountId: number,
+  session?: ClientSession,
+): Promise<Transaction[]> {
   const collection = await getCollection();
-  return collection.findOne({ txn_id: txnId });
+  return collection
+    .find(
+      { account_id: accountId },
+      {
+        session,
+        projection: { _id: 0 },
+      },
+    )
+    .sort({ created_at: -1 })
+    .toArray();
 }
 
-async function findByAccountId(accountId: number): Promise<Transaction[]> {
-  const collection = await getCollection();
-  return collection.find({ account_id: accountId }).sort({ created_at: 1 }).toArray();
-}
-
-async function deleteById(txnId: number): Promise<boolean> {
-  const collection = await getCollection();
-  const result = await collection.deleteOne({ txn_id: txnId });
-  return result.deletedCount > 0;
-}
-
-async function deleteByAccountId(accountId: number): Promise<void> {
-  const collection = await getCollection();
-  await collection.deleteMany({ account_id: accountId });
-}
-
-export default { create, findById, findByAccountId, deleteById, deleteByAccountId };
+export default { create, findByAccountId };

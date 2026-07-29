@@ -1,143 +1,220 @@
 # BankApplication
 
-A simple Express + TypeScript bank account API, with a React frontend.
+An authenticated Express + TypeScript bank account API backed by MongoDB Atlas,
+with a React frontend and interactive OpenAPI documentation.
+
+## Prerequisites
+
+- Node.js
+- A MongoDB Atlas project with a running deployment
+- A MongoDB database user
+- Your development IP in the Atlas project IP access list
+
+## Configuration
+
+Copy `.env.example` to `.env` and replace the placeholders:
+
+```env
+MONGODB_URI=mongodb+srv://...
+MONGODB_DB=bankapp
+JWT_SECRET=replace-with-a-random-secret-of-at-least-32-characters
+PORT=3000
+```
+
+Generate a JWT secret with:
+
+```bash
+openssl rand -base64 48
+```
+
+Never commit `.env` or expose `MONGODB_URI` or `JWT_SECRET` to the React client.
 
 ## Getting Started
 
 ```bash
 npm install
-npm run dev          # start the API (tsx watch index.ts)
-npm run client:dev    # start the React frontend (webpack-dev-server)
+npm run dev
 ```
 
-Build for production:
+In a second terminal:
 
 ```bash
-npm run build         # compile API to dist/
-npm run client:build  # bundle the frontend
-npm start             # run compiled API
+npm run client:dev
 ```
 
-## Interactive API Documentation
+Run both development servers together:
 
-With the API running, open [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
-to browse the Swagger UI and try requests against the API.
+```bash
+npm run dev:all
+```
 
-The machine-readable OpenAPI 3.1 contract is available at
-[http://localhost:3000/openapi.json](http://localhost:3000/openapi.json) and is
-maintained in `openapi.json`.
+Production builds:
+
+```bash
+npm run build
+npm run client:build
+npm start
+```
+
+## Authentication
+
+Register:
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Alice Johnson",
+  "email": "alice@example.com",
+  "password": "correct-horse-battery-staple"
+}
+```
+
+Log in:
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "alice@example.com",
+  "password": "correct-horse-battery-staple"
+}
+```
+
+Both endpoints return a one-hour JWT:
+
+```json
+{
+  "user": {
+    "user_id": 1,
+    "name": "Alice Johnson",
+    "email": "alice@example.com",
+    "status": "ACTIVE"
+  },
+  "token": "..."
+}
+```
+
+Send the token with every protected request:
+
+```http
+Authorization: Bearer <token>
+```
+
+Account operations enforce ownership. A user can debit only their own source
+account, while a transfer may credit another user's active account.
+
+## Money Values
+
+The API and MongoDB store all monetary values as integer cents:
+
+```json
+{
+  "amountCents": 12550
+}
+```
+
+represents `$125.50`. Responses use `balance_cents` and `amount_cents`.
+
+Deposits, withdrawals, and transfers also require a unique retry-protection
+header:
+
+```http
+Idempotency-Key: 6748302e-08c5-4ce9-966a-bef8479aec15
+```
+
+Reusing a key returns `409 Conflict` without applying the balance change again.
+
+Existing development documents that use the old floating-point `balance` and
+`amount` fields are converted to cents during database initialization.
 
 ## API Routes
 
-Base URL: `http://localhost:3000`
+Public routes:
 
-### General
+| Method | Route | Description |
+|---|---|---|
+| GET | `/` | API status |
+| GET | `/health` | Application and database readiness |
+| GET | `/health/live` | Process liveness |
+| POST | `/api/auth/register` | Register and receive a token |
+| POST | `/api/auth/login` | Log in and receive a token |
 
-| Method | Route     | Description              |
-|--------|-----------|--------------------------|
-| GET    | `/`       | API status check         |
-| GET    | `/health` | Health check              |
+Protected user routes:
 
-### Accounts
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/users/me` | Get the authenticated user |
+| PATCH | `/api/users/me` | Update the authenticated user |
+| DELETE | `/api/users/me` | Close the user and zero-balance accounts |
 
-All account routes are mounted under `/api/accounts`.
+Protected account routes:
 
-| Method | Route                         | Description                     |
-|--------|--------------------------------|----------------------------------|
-| POST   | `/api/accounts`                | Create a new account             |
-| GET    | `/api/accounts/:id`            | Get an account by ID             |
-| POST   | `/api/accounts/:id/deposit`    | Deposit funds into an account    |
-| POST   | `/api/accounts/:id/withdraw`   | Withdraw funds from an account   |
-| GET    | `/api/accounts/:id/transactions` | Get transaction history for an account |
+| Method | Route | Description |
+|---|---|---|
+| POST | `/api/accounts` | Create an account for the authenticated user |
+| GET | `/api/accounts/:id` | Get an owned account |
+| POST | `/api/accounts/:id/deposit` | Deposit into an owned account |
+| POST | `/api/accounts/:id/withdraw` | Withdraw from an owned account |
+| POST | `/api/accounts/:id/transfer` | Transfer from an owned account |
+| GET | `/api/accounts/:id/transactions` | Get immutable transaction history |
+| DELETE | `/api/accounts/:id` | Close a zero-balance account |
 
-#### `POST /api/accounts`
+Closing users and accounts is a soft operation. Account and transaction
+documents are retained, and there is no transaction-deletion endpoint.
 
-Create an account for an existing user.
+## Swagger
 
-**Body:**
-```json
-{
-  "userId": 1,
-  "accountType": "CHECKING"
-}
-```
-`accountType` must be one of `CHECKING`, `SAVINGS` (case-insensitive).
+With the API running, open:
 
-**Responses:**
-- `201` — created account
-- `400` — missing/invalid `userId` or `accountType`
-
-#### `GET /api/accounts/:id`
-
-Retrieve an account by its ID.
-
-**Responses:**
-- `200` — account object
-- `404` — account not found
-
-#### `POST /api/accounts/:id/deposit`
-
-Deposit funds into an account.
-
-**Body:**
-```json
-{
-  "amount": 100
-}
+```text
+http://localhost:3000/api-docs
 ```
 
-**Responses:**
-- `200` — updated account
-- `400` — invalid amount or account not found
+To call protected endpoints:
 
-#### `POST /api/accounts/:id/withdraw`
+1. Run `POST /api/auth/register` or `POST /api/auth/login`.
+2. Copy the returned token.
+3. Select **Authorize**.
+4. Paste the token into the bearer authentication field.
 
-Withdraw funds from an account.
+The machine-readable OpenAPI 3.1 contract is available at:
 
-**Body:**
-```json
-{
-  "amount": 50
-}
+```text
+http://localhost:3000/openapi.json
 ```
 
-**Responses:**
-- `200` — updated account
-- `400` — invalid amount, insufficient funds, or account not found
+## MongoDB Behavior
 
-#### `GET /api/accounts/:id/transactions`
+At startup the API:
 
-Retrieve the transaction history for an account.
+1. Connects to Atlas and verifies the connection with a ping.
+2. Converts legacy money fields to integer cents.
+3. Normalizes existing user email fields.
+4. Creates unique and query indexes.
+5. Seeds atomic numeric-ID counters from existing data.
+6. Starts Express only after initialization succeeds.
 
-**Responses:**
-- `200` — array of transactions
-- `404` — account not found
+Deposits, withdrawals, transfers, and closure cascades use MongoDB sessions and
+transactions. Withdrawals use a conditional balance update to prevent concurrent
+requests from overdrawing an account.
 
-### Data Models
+The server closes its MongoDB connection on `SIGINT` and `SIGTERM`.
 
-**Account**
-```ts
-{
-  account_id: number;
-  user_id: number;
-  account_type: 'CHECKING' | 'SAVINGS';
-  balance: number;
-  created_at: string;
-}
-```
+## Current Security Scope
 
-**Transaction**
-```ts
-{
-  txn_id: number;
-  account_id: number;
-  txn_type: 'DEPOSIT' | 'WITHDRAWAL';
-  amount: number;
-  created_at: string;
-}
-```
+- Passwords are hashed with bcrypt.
+- Access tokens expire after one hour.
+- Closed users cannot authenticate or use an existing token.
+- Account routes enforce ownership.
+- Transaction history is immutable.
+- Money operations reject duplicate idempotency keys.
 
-## Planned / TODO
+## TODO
 
-- **Auth** — routes are currently unauthenticated; any caller can create accounts or move funds for any `userId`. Add authentication and athuorization to api routes.
-- **Integer cents for balance** — `balance` and `amount` are currently floats which can lead to rounding errors on money. Switch to storing/transacting in integer cents (or a decimal library) instead.
+- Update the bare-bones frontend to support registration and login, attach the
+  bearer token to protected requests, use the authenticated user instead of a
+  manually entered user ID, send integer-cent money fields and idempotency keys,
+  and display the updated account and transaction response shapes.

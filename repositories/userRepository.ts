@@ -1,4 +1,5 @@
-import { Collection } from 'mongodb';
+import { ClientSession, Collection } from 'mongodb';
+import { getNextId } from '../db/counters';
 import { getDatabase } from '../db/mongo';
 import { User } from '../models/user';
 
@@ -7,41 +8,104 @@ async function getCollection(): Promise<Collection<User>> {
   return db.collection<User>('users');
 }
 
-async function findById(userId: number): Promise<User | undefined> {
+async function findById(
+  userId: number,
+  session?: ClientSession,
+): Promise<User | undefined> {
   const collection = await getCollection();
-  return collection.findOne({ user_id: userId });
+  const user = await collection.findOne(
+    { user_id: userId },
+    {
+      session,
+      projection: { _id: 0 },
+    },
+  );
+  return user ?? undefined;
 }
 
-async function findByEmail(email: string): Promise<User | undefined> {
+async function findByEmail(
+  email: string,
+  session?: ClientSession,
+): Promise<User | undefined> {
   const collection = await getCollection();
-  return collection.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
+  const user = await collection.findOne(
+    { email_normalized: email.trim().toLowerCase() },
+    {
+      session,
+      projection: { _id: 0 },
+    },
+  );
+  return user ?? undefined;
 }
 
-async function findAll(): Promise<User[]> {
+async function create(
+  name: string,
+  email: string,
+  hashPassword: string,
+  session?: ClientSession,
+): Promise<User> {
   const collection = await getCollection();
-  return collection.find({}).sort({ user_id: 1 }).toArray();
-}
-
-async function create(name: string, email: string, hashPassword: string): Promise<User> {
-  const collection = await getCollection();
-  const user = new User(Date.now(), name, email, hashPassword);
-  await collection.insertOne(user);
+  const userId = await getNextId('users', session);
+  const user = new User(userId, name, email, hashPassword);
+  await collection.insertOne(user, { session });
   return user;
 }
 
-async function update(user: User): Promise<User> {
+async function updateProfile(
+  userId: number,
+  name: string,
+  email: string,
+): Promise<User | undefined> {
   const collection = await getCollection();
-  const result = await collection.updateOne({ user_id: user.user_id }, { $set: user });
-  if (result.matchedCount === 0) {
-    throw new Error('User not found');
-  }
-  return user;
+  const user = await collection.findOneAndUpdate(
+    {
+      user_id: userId,
+      status: 'ACTIVE',
+    },
+    {
+      $set: {
+        name,
+        email,
+        email_normalized: email.toLowerCase(),
+      },
+    },
+    {
+      returnDocument: 'after',
+      projection: { _id: 0 },
+    },
+  );
+  return user ?? undefined;
 }
 
-async function deleteById(userId: number): Promise<boolean> {
+async function closeById(
+  userId: number,
+  session: ClientSession,
+): Promise<User | undefined> {
   const collection = await getCollection();
-  const result = await collection.deleteOne({ user_id: userId });
-  return result.deletedCount > 0;
+  const user = await collection.findOneAndUpdate(
+    {
+      user_id: userId,
+      status: 'ACTIVE',
+    },
+    {
+      $set: {
+        status: 'CLOSED',
+        closed_at: new Date().toISOString(),
+      },
+    },
+    {
+      session,
+      returnDocument: 'after',
+      projection: { _id: 0 },
+    },
+  );
+  return user ?? undefined;
 }
 
-export default { findById, findByEmail, findAll, create, update, deleteById };
+export default {
+  findById,
+  findByEmail,
+  create,
+  updateProfile,
+  closeById,
+};

@@ -1,173 +1,125 @@
 import { Request, Response } from 'express';
+import { BadRequestError } from '../errors/AppError';
+import { ACCOUNT_TYPES, AccountType } from '../models/account';
 import AccountService from '../services/AccountService';
-import { AccountType, ACCOUNT_TYPES } from '../models/account';
-
+import { sendError } from './httpError';
+import {
+  parsePositiveId,
+  requireIdempotencyKey,
+} from './requestValidation';
 
 function isAccountType(value: unknown): value is AccountType {
-  return typeof value === 'string' && (ACCOUNT_TYPES as string[]).includes(value);
+  return (
+    typeof value === 'string' &&
+    (ACCOUNT_TYPES as readonly string[]).includes(value)
+  );
 }
 
-
-/**
- * Creates an account for an existing user.
- *
- * `POST /api/accounts`
- *
- * @param req - Express request with `userId` and `accountType` in the JSON body.
- * @param res - Returns the created account with status 201, or an error with status 400.
- */
 async function createAccount(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, accountType } = req.body;
-    if (!userId || !accountType) {
-      res.status(400).json({ error: 'userId and accountType are required' });
-      return;
-    }
-    const normalizedType = typeof accountType === 'string' ? accountType.toUpperCase() : accountType;
+    const normalizedType =
+      typeof req.body.accountType === 'string'
+        ? req.body.accountType.toUpperCase()
+        : req.body.accountType;
     if (!isAccountType(normalizedType)) {
-      res.status(400).json({ error: `accountType must be one of: ${ACCOUNT_TYPES.join(', ')}` });
-      return;
+      throw new BadRequestError(
+        `accountType must be one of: ${ACCOUNT_TYPES.join(', ')}`,
+      );
     }
-    const account = await AccountService.createAccount(Number(userId), normalizedType);
+
+    const account = await AccountService.createAccount(
+      req.auth!.userId,
+      normalizedType,
+    );
     res.status(201).json(account);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
-/**
- * Retrieves an account by its ID.
- *
- * `GET /api/accounts/:id`
- *
- * @param req - Express request with the account ID in `params.id`.
- * @param res - Returns the account with status 200, or an error with status 404.
- */
 async function getAccount(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = Number(req.params.id);
-    const account = await AccountService.getAccount(accountId);
+    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const account = await AccountService.getAccount(
+      accountId,
+      req.auth!.userId,
+    );
     res.json(account);
-  } catch (err) {
-    res.status(404).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
-/**
- * Deposits funds into an account.
- *
- * `POST /api/accounts/:id/deposit`
- *
- * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
- * @param res - Returns the updated account with status 200, or an error with status 400.
- */
-// TODO: Distinguish 404 (account not found) from 400 (bad amount) via custom error classes
 async function deposit(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = Number(req.params.id);
-    const { amount } = req.body;
-    const account = await AccountService.deposit(accountId, Number(amount));
+    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const account = await AccountService.deposit(
+      accountId,
+      req.auth!.userId,
+      req.body.amountCents,
+      requireIdempotencyKey(req.header('Idempotency-Key')),
+    );
     res.json(account);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
-/**
- * Withdraws funds from an account.
- *
- * `POST /api/accounts/:id/withdraw`
- *
- * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
- * @param res - Returns the updated account with status 200, or an error with status 400.
- */
 async function withdraw(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = Number(req.params.id);
-    const { amount } = req.body;
-    const account = await AccountService.withdraw(accountId, Number(amount));
+    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const account = await AccountService.withdraw(
+      accountId,
+      req.auth!.userId,
+      req.body.amountCents,
+      requireIdempotencyKey(req.header('Idempotency-Key')),
+    );
     res.json(account);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
-/**
- * Transfers funds from one account to another.
- *
- * `POST /api/accounts/:id/transfer`
- *
- * @param req - Express request with the source account ID in `params.id`, and
- *              `toAccountId` and `amount` in the JSON body.
- * @param res - Returns both updated accounts with status 200, or an error with status 400.
- */
 async function transfer(req: Request, res: Response): Promise<void> {
   try {
-    const fromAccountId = Number(req.params.id);
-    const { toAccountId, amount } = req.body;
-    if (toAccountId === undefined || amount === undefined) {
-      res.status(400).json({ error: 'toAccountId and amount are required' });
-      return;
-    }
-    const result = await AccountService.transfer(fromAccountId, Number(toAccountId), Number(amount));
+    const fromAccountId = parsePositiveId(req.params.id, 'account ID');
+    const toAccountId = parsePositiveId(
+      String(req.body.toAccountId),
+      'destination account ID',
+    );
+    const result = await AccountService.transfer(
+      fromAccountId,
+      req.auth!.userId,
+      toAccountId,
+      req.body.amountCents,
+      requireIdempotencyKey(req.header('Idempotency-Key')),
+    );
     res.json(result);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
-/**
- * Retrieves the transaction history for an account.
- *
- * `GET /api/accounts/:id/transactions`
- *
- * @param req - Express request with the account ID in `params.id`.
- * @param res - Returns the transaction list with status 200, or an error with status 404.
- */
 async function getTransactions(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = Number(req.params.id);
-    const transactions = await AccountService.getTransactions(accountId);
+    const accountId = parsePositiveId(req.params.id, 'account ID');
+    const transactions = await AccountService.getTransactions(
+      accountId,
+      req.auth!.userId,
+    );
     res.json(transactions);
-  } catch (err) {
-    res.status(404).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
-/**
- * Deletes an account. The balance must be zero first.
- *
- * `DELETE /api/accounts/:id`
- *
- * @param req - Express request with the account ID in `params.id`.
- * @param res - Returns status 204 on success, or an error with status 400.
- */
-async function deleteAccount(req: Request, res: Response): Promise<void> {
+async function closeAccount(req: Request, res: Response): Promise<void> {
   try {
-    const accountId = Number(req.params.id);
-    await AccountService.deleteAccount(accountId);
+    const accountId = parsePositiveId(req.params.id, 'account ID');
+    await AccountService.closeAccount(accountId, req.auth!.userId);
     res.status(204).send();
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-  }
-}
-
-/**
- * Deletes a single transaction from an account's history.
- *
- * `DELETE /api/accounts/:id/transactions/:txnId`
- *
- * @param req - Express request with the account ID in `params.id` and the transaction ID in `params.txnId`.
- * @param res - Returns status 204 on success, or an error with status 400.
- */
-async function deleteTransaction(req: Request, res: Response): Promise<void> {
-  try {
-    const accountId = Number(req.params.id);
-    const txnId = Number(req.params.txnId);
-    await AccountService.deleteTransaction(accountId, txnId);
-    res.status(204).send();
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
+  } catch (error) {
+    sendError(res, error);
   }
 }
 
@@ -178,6 +130,5 @@ export default {
   withdraw,
   transfer,
   getTransactions,
-  deleteAccount,
-  deleteTransaction,
+  closeAccount,
 };
