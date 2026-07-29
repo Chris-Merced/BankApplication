@@ -1,4 +1,4 @@
-import { Collection } from 'mongodb';
+import { Collection, WithId } from 'mongodb';
 import { getDatabase } from '../db/mongo';
 import { User } from '../models/user';
 
@@ -7,12 +7,12 @@ async function getCollection(): Promise<Collection<User>> {
   return db.collection<User>('users');
 }
 
-async function findById(userId: number): Promise<User | undefined> {
+async function findById(userId: number): Promise< WithId<User> | null> {
   const collection = await getCollection();
   return collection.findOne({ user_id: userId });
 }
 
-async function findByEmail(email: string): Promise<User | undefined> {
+async function findByEmail(email: string): Promise< WithId<User> | null> {
   const collection = await getCollection();
   return collection.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
 }

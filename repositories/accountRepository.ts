@@ -1,7 +1,6 @@
-import { Collection } from 'mongodb';
+import { Collection, WithId } from 'mongodb';
 import { getDatabase } from '../db/mongo';
 import { Account, AccountType } from '../models/account';
-import type { WithId } from 'mongodb';
 
 async function getCollection(): Promise<Collection<Account>> {
   const db = await getDatabase();

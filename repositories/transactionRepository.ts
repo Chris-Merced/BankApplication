@@ -1,4 +1,4 @@
-import { Collection } from 'mongodb';
+import { Collection, WithId } from 'mongodb';
 import { getDatabase } from '../db/mongo';
 import { Transaction, TransactionType } from '../models/transaction';
 
@@ -19,7 +19,7 @@ async function create(
   return txn;
 }
 
-async function findById(txnId: number): Promise<Transaction | undefined> {
+async function findById(txnId: number): Promise< WithId<Transaction> | null> {
   const collection = await getCollection();
   return collection.findOne({ txn_id: txnId });
 }
