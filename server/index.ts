@@ -2,7 +2,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import accountRoutes from './routes/accountRoutes';
 import userRoutes from './routes/userRoutes';
-import openApiDocument from './openapi.json';
+import openApiDocument from '../openapi.json';
 import { connectToDatabase, closeDatabaseConnection } from './db/mongo';
 
 const app = express();

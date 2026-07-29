@@ -2,11 +2,11 @@
   "name": "bank-application-api",
   "version": "1.0.0",
   "description": "Simple Express API",
-  "main": "dist/index.js",
+  "main": "dist/server/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx watch index.ts",
+    "start": "node dist/server/index.js",
+    "dev": "tsx watch server/index.ts",
     "client:dev": "webpack serve --open",
     "client:build": "webpack --mode production",
     "dev:all": "concurrently -n server,client -c blue,green \"npm run dev\" \"npm run client:dev\""
