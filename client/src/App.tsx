@@ -156,13 +156,11 @@ export default function App() {
     try {
       const userAccounts = await api.getAccounts();
       setAccounts(userAccounts);
-      const firstActiveAccount = userAccounts.find(
-        (account) => account.status === 'ACTIVE',
-      );
+      const firstAccount = userAccounts[0];
       // Preselect one so Deposit/Withdraw are usable without any extra clicks
-      setSelectedAccountId(firstActiveAccount?.account_id ?? null);
+      setSelectedAccountId(firstAccount?.account_id ?? null);
       setTransferFromInput(
-        (previous) => previous || firstActiveAccount?.account_id || '',
+        (previous) => previous || firstAccount?.account_id || '',
       );
     } catch (err) {
       setError((err as Error).message);
@@ -256,7 +254,6 @@ export default function App() {
               onChange={(e) => setSelectedAccountId(e.target.value)}
             >
               {[...accounts]
-                .filter((account) => account.status === 'ACTIVE')
                 .sort((a, b) => a.created_at.localeCompare(b.created_at))
                 .map((a) => (
                   <option key={a.account_id} value={a.account_id}>
@@ -341,7 +338,6 @@ export default function App() {
                 <th>user_id</th>
                 <th>account_type</th>
                 <th>balance</th>
-                <th>status</th>
                 <th>created_at</th>
               </tr>
             </thead>
@@ -359,7 +355,6 @@ export default function App() {
                       <td>{a.user_id}</td>
                       <td>{a.account_type}</td>
                       <td>{format_currency(a.balance_cents)}</td>
-                      <td>{a.status}</td>
                       <td>{format_time(a.created_at)}</td>
                     </tr>
                   );

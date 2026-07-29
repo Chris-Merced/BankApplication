@@ -47,4 +47,41 @@ async function findByAccountId(
     .toArray();
 }
 
-export default { create, findByAccountId };
+async function findById(
+  transactionId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<Transaction> | undefined> {
+  const collection = await getCollection();
+  return (
+    (await collection.findOne({ _id: transactionId }, { session })) ??
+    undefined
+  );
+}
+
+async function deleteById(
+  transactionId: ObjectId,
+  session: ClientSession,
+): Promise<boolean> {
+  const collection = await getCollection();
+  const result = await collection.deleteOne(
+    { _id: transactionId },
+    { session },
+  );
+  return result.deletedCount > 0;
+}
+
+async function deleteByAccountId(
+  accountId: ObjectId,
+  session: ClientSession,
+): Promise<void> {
+  const collection = await getCollection();
+  await collection.deleteMany({ account_id: accountId }, { session });
+}
+
+export default {
+  create,
+  findByAccountId,
+  findById,
+  deleteById,
+  deleteByAccountId,
+};

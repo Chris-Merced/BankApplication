@@ -48,7 +48,6 @@ async function requireOwnedAccount(
   accountId: ObjectId,
   userId: ObjectId,
   session?: ClientSession,
-  requireActive = false,
 ): Promise<WithId<Account>> {
   const account = await accountRepository.findById(accountId, session);
   if (!account) {
@@ -56,9 +55,6 @@ async function requireOwnedAccount(
   }
   if (!account.user_id.equals(userId)) {
     throw new ForbiddenError();
-  }
-  if (requireActive && account.status !== 'ACTIVE') {
-    throw new ConflictError('Account is closed');
   }
   return account;
 }
@@ -68,7 +64,7 @@ async function createAccount(
   accountType: AccountType,
 ): Promise<WithId<Account>> {
   const user = await userRepository.findById(userId);
-  if (!user || user.status !== 'ACTIVE') {
+  if (!user) {
     throw new NotFoundError('User not found');
   }
   return accountRepository.create(userId, accountType);
@@ -98,14 +94,14 @@ async function deposit(
 
   try {
     return await runInTransaction(async (session) => {
-      await requireOwnedAccount(accountId, userId, session, true);
+      await requireOwnedAccount(accountId, userId, session);
       const updated = await accountRepository.adjustBalance(
         accountId,
         amountCents,
         session,
       );
       if (!updated) {
-        throw new ConflictError('Account is closed');
+        throw new NotFoundError('Account not found');
       }
       await transactionRepository.create(
         accountId,
@@ -133,7 +129,7 @@ async function withdraw(
 
   try {
     return await runInTransaction(async (session) => {
-      await requireOwnedAccount(accountId, userId, session, true);
+      await requireOwnedAccount(accountId, userId, session);
       const updated = await accountRepository.adjustBalance(
         accountId,
         -amountCents,
@@ -177,15 +173,11 @@ async function transfer(
 
   try {
     return await runInTransaction(async (session) => {
-      await requireOwnedAccount(fromAccountId, userId, session, true);
+      await requireOwnedAccount(fromAccountId, userId, session);
       const destination = await accountRepository.findById(toAccountId, session);
       if (!destination) {
         throw new NotFoundError('Destination account not found');
       }
-      if (destination.status !== 'ACTIVE') {
-        throw new ConflictError('Destination account is closed');
-      }
-
       const updatedFrom = await accountRepository.adjustBalance(
         fromAccountId,
         -amountCents,
@@ -200,7 +192,7 @@ async function transfer(
         session,
       );
       if (!updatedTo) {
-        throw new ConflictError('Destination account is closed');
+        throw new NotFoundError('Destination account not found');
       }
 
       await transactionRepository.create(
@@ -234,20 +226,45 @@ async function getTransactions(
   return transactionRepository.findByAccountId(accountId);
 }
 
-async function closeAccount(
+async function deleteAccount(
   accountId: ObjectId,
   userId: ObjectId,
 ): Promise<void> {
   await runInTransaction(async (session) => {
-    const account = await requireOwnedAccount(accountId, userId, session, true);
+    const account = await requireOwnedAccount(accountId, userId, session);
     if (account.balance_cents !== 0) {
       throw new ConflictError(
-        'Cannot close an account with a non-zero balance',
+        'Cannot delete an account with a non-zero balance',
       );
     }
-    const closed = await accountRepository.closeById(accountId, session);
-    if (!closed) {
-      throw new ConflictError('Account could not be closed');
+    await transactionRepository.deleteByAccountId(accountId, session);
+    const deleted = await accountRepository.deleteById(accountId, session);
+    if (!deleted) {
+      throw new NotFoundError('Account not found');
+    }
+  });
+}
+
+async function deleteTransaction(
+  accountId: ObjectId,
+  userId: ObjectId,
+  transactionId: ObjectId,
+): Promise<void> {
+  await runInTransaction(async (session) => {
+    await requireOwnedAccount(accountId, userId, session);
+    const transaction = await transactionRepository.findById(
+      transactionId,
+      session,
+    );
+    if (!transaction || !transaction.account_id.equals(accountId)) {
+      throw new NotFoundError('Transaction not found');
+    }
+    const deleted = await transactionRepository.deleteById(
+      transactionId,
+      session,
+    );
+    if (!deleted) {
+      throw new NotFoundError('Transaction not found');
     }
   });
 }
@@ -260,5 +277,6 @@ export default {
   withdraw,
   transfer,
   getTransactions,
-  closeAccount,
+  deleteAccount,
+  deleteTransaction,
 };

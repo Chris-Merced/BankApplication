@@ -18,8 +18,8 @@ export async function authenticate(
     const token = authorization.slice('Bearer '.length).trim();
     const userId = verifyToken(token);
     const user = await userRepository.findById(userId);
-    if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedError('User account is not active');
+    if (!user) {
+      throw new UnauthorizedError('User account no longer exists');
     }
 
     req.auth = { userId };

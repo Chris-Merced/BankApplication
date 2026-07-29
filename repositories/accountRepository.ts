@@ -57,7 +57,6 @@ async function adjustBalance(
   const collection = await getCollection();
   const filter: Filter<Account> = {
     _id: accountId,
-    status: 'ACTIVE',
   };
   if (deltaCents < 0) {
     filter.balance_cents = { $gte: Math.abs(deltaCents) };
@@ -75,51 +74,13 @@ async function adjustBalance(
   );
 }
 
-async function closeById(
+async function deleteById(
   accountId: ObjectId,
   session: ClientSession,
-): Promise<WithId<Account> | undefined> {
+): Promise<boolean> {
   const collection = await getCollection();
-  return (
-    (await collection.findOneAndUpdate(
-      {
-        _id: accountId,
-        status: 'ACTIVE',
-        balance_cents: 0,
-      },
-      {
-        $set: {
-          status: 'CLOSED',
-          closed_at: new Date().toISOString(),
-        },
-      },
-      {
-        session,
-        returnDocument: 'after',
-      },
-    )) ?? undefined
-  );
-}
-
-async function closeAllForUser(
-  userId: ObjectId,
-  session: ClientSession,
-): Promise<void> {
-  const collection = await getCollection();
-  await collection.updateMany(
-    {
-      user_id: userId,
-      status: 'ACTIVE',
-      balance_cents: 0,
-    },
-    {
-      $set: {
-        status: 'CLOSED',
-        closed_at: new Date().toISOString(),
-      },
-    },
-    { session },
-  );
+  const result = await collection.deleteOne({ _id: accountId }, { session });
+  return result.deletedCount > 0;
 }
 
 export default {
@@ -127,6 +88,5 @@ export default {
   findById,
   findByUserId,
   adjustBalance,
-  closeById,
-  closeAllForUser,
+  deleteById,
 };

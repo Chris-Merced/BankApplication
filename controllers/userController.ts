@@ -36,13 +36,13 @@ async function updateCurrentUser(req: Request, res: Response): Promise<void> {
   }
 }
 
-async function closeCurrentUser(req: Request, res: Response): Promise<void> {
+async function deleteCurrentUser(req: Request, res: Response): Promise<void> {
   try {
-    await UserService.closeUser(req.auth!.userId);
+    await UserService.deleteUser(req.auth!.userId);
     res.status(204).send();
   } catch (error) {
     sendError(res, error);
   }
 }
 
-export default { getCurrentUser, updateCurrentUser, closeCurrentUser };
+export default { getCurrentUser, updateCurrentUser, deleteCurrentUser };

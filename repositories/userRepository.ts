@@ -5,7 +5,11 @@ import {
   WithId,
 } from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { createUserDocument, User } from '../models/user';
+import {
+  createUserDocument,
+  normalizeEmail,
+  User,
+} from '../models/user';
 
 async function getCollection(): Promise<Collection<User>> {
   const db = await getDatabase();
@@ -27,7 +31,7 @@ async function findByEmail(
   const collection = await getCollection();
   return (
     (await collection.findOne(
-      { email_normalized: email.trim().toLowerCase() },
+      { email: normalizeEmail(email) },
       { session },
     )) ?? undefined
   );
@@ -53,12 +57,11 @@ async function updateProfile(
   const collection = await getCollection();
   return (
     (await collection.findOneAndUpdate(
-      { _id: userId, status: 'ACTIVE' },
+      { _id: userId },
       {
         $set: {
           name,
-          email,
-          email_normalized: email.toLowerCase(),
+          email: normalizeEmail(email),
         },
       },
       { returnDocument: 'after' },
@@ -66,26 +69,13 @@ async function updateProfile(
   );
 }
 
-async function closeById(
+async function deleteById(
   userId: ObjectId,
   session: ClientSession,
-): Promise<WithId<User> | undefined> {
+): Promise<boolean> {
   const collection = await getCollection();
-  return (
-    (await collection.findOneAndUpdate(
-      { _id: userId, status: 'ACTIVE' },
-      {
-        $set: {
-          status: 'CLOSED',
-          closed_at: new Date().toISOString(),
-        },
-      },
-      {
-        session,
-        returnDocument: 'after',
-      },
-    )) ?? undefined
-  );
+  const result = await collection.deleteOne({ _id: userId }, { session });
+  return result.deletedCount > 0;
 }
 
 export default {
@@ -93,5 +83,5 @@ export default {
   findByEmail,
   create,
   updateProfile,
-  closeById,
+  deleteById,
 };

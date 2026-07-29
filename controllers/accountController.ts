@@ -130,10 +130,28 @@ async function getTransactions(req: Request, res: Response): Promise<void> {
   }
 }
 
-async function closeAccount(req: Request, res: Response): Promise<void> {
+async function deleteAccount(req: Request, res: Response): Promise<void> {
   try {
     const accountId = parseObjectId(req.params.id, 'account ID');
-    await AccountService.closeAccount(accountId, req.auth!.userId);
+    await AccountService.deleteAccount(accountId, req.auth!.userId);
+    res.status(204).send();
+  } catch (error) {
+    sendError(res, error);
+  }
+}
+
+async function deleteTransaction(req: Request, res: Response): Promise<void> {
+  try {
+    const accountId = parseObjectId(req.params.id, 'account ID');
+    const transactionId = parseObjectId(
+      req.params.txnId,
+      'transaction ID',
+    );
+    await AccountService.deleteTransaction(
+      accountId,
+      req.auth!.userId,
+      transactionId,
+    );
     res.status(204).send();
   } catch (error) {
     sendError(res, error);
@@ -148,5 +166,6 @@ export default {
   withdraw,
   transfer,
   getTransactions,
-  closeAccount,
+  deleteAccount,
+  deleteTransaction,
 };

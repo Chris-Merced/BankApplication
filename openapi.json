@@ -3,7 +3,7 @@
   "info": {
     "title": "Bank Application API",
     "version": "3.0.0",
-    "description": "Authenticated MongoDB-backed API. IDs are MongoDB ObjectId strings, money values are integer cents, and transaction history is immutable."
+    "description": "Authenticated MongoDB-backed API. IDs are MongoDB ObjectId strings, money values are integer cents, and protected routes enforce ownership."
   },
   "servers": [
     {
@@ -178,12 +178,12 @@
       },
       "delete": {
         "tags": ["Users"],
-        "summary": "Close the authenticated user",
-        "description": "Closes the user and zero-balance accounts while retaining account and transaction records.",
-        "operationId": "closeCurrentUser",
+        "summary": "Delete the authenticated user",
+        "description": "Deletes the user, zero-balance accounts, and their transaction history.",
+        "operationId": "deleteCurrentUser",
         "security": [{ "bearerAuth": [] }],
         "responses": {
-          "204": { "description": "User closed" },
+          "204": { "description": "User deleted" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
@@ -261,13 +261,13 @@
       },
       "delete": {
         "tags": ["Accounts"],
-        "summary": "Close a zero-balance owned account",
-        "description": "The account and transaction history are retained.",
-        "operationId": "closeAccount",
+        "summary": "Delete a zero-balance owned account",
+        "description": "Deletes the account and its transaction history.",
+        "operationId": "deleteAccount",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
         "responses": {
-          "204": { "description": "Account closed" },
+          "204": { "description": "Account deleted" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
@@ -356,7 +356,7 @@
     "/api/accounts/{id}/transactions": {
       "get": {
         "tags": ["Accounts"],
-        "summary": "List immutable transaction history for an owned account",
+        "summary": "List transaction history for an owned account",
         "operationId": "getTransactions",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/AccountId" }],
@@ -372,6 +372,25 @@
               }
             }
           },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/accounts/{id}/transactions/{txnId}": {
+      "delete": {
+        "tags": ["Accounts"],
+        "summary": "Delete a transaction from an owned account",
+        "operationId": "deleteTransaction",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountId" },
+          { "$ref": "#/components/parameters/TransactionId" }
+        ],
+        "responses": {
+          "204": { "description": "Transaction deleted" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
@@ -394,6 +413,13 @@
         "in": "path",
         "required": true,
         "description": "MongoDB ObjectId string",
+        "schema": { "$ref": "#/components/schemas/ObjectId" }
+      },
+      "TransactionId": {
+        "name": "txnId",
+        "in": "path",
+        "required": true,
+        "description": "MongoDB transaction ObjectId string",
         "schema": { "$ref": "#/components/schemas/ObjectId" }
       },
       "IdempotencyKey": {
@@ -492,27 +518,12 @@
       },
       "User": {
         "type": "object",
-        "required": [
-          "user_id",
-          "name",
-          "email",
-          "status",
-          "created_at",
-          "closed_at"
-        ],
+        "required": ["user_id", "name", "email", "created_at"],
         "properties": {
           "user_id": { "$ref": "#/components/schemas/ObjectId" },
           "name": { "type": "string" },
           "email": { "type": "string", "format": "email" },
-          "status": {
-            "type": "string",
-            "enum": ["ACTIVE", "CLOSED"]
-          },
-          "created_at": { "type": "string", "format": "date-time" },
-          "closed_at": {
-            "type": ["string", "null"],
-            "format": "date-time"
-          }
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "UpdateUserRequest": {
@@ -575,9 +586,7 @@
           "user_id",
           "account_type",
           "balance_cents",
-          "status",
-          "created_at",
-          "closed_at"
+          "created_at"
         ],
         "properties": {
           "account_id": { "$ref": "#/components/schemas/ObjectId" },
@@ -587,15 +596,7 @@
             "enum": ["CHECKING", "SAVINGS"]
           },
           "balance_cents": { "type": "integer", "minimum": 0 },
-          "status": {
-            "type": "string",
-            "enum": ["ACTIVE", "CLOSED"]
-          },
-          "created_at": { "type": "string", "format": "date-time" },
-          "closed_at": {
-            "type": ["string", "null"],
-            "format": "date-time"
-          }
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "Transaction": {

@@ -6,17 +6,14 @@ import {
   ConflictError,
   NotFoundError,
 } from '../errors/AppError';
-import { User } from '../models/user';
+import { normalizeEmail, User } from '../models/user';
 import accountRepository from '../repositories/accountRepository';
+import transactionRepository from '../repositories/transactionRepository';
 import userRepository from '../repositories/userRepository';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SALT_ROUNDS = 10;
 const MIN_PASSWORD_LENGTH = 8;
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
 
 async function createUser(
   name: string,
@@ -58,7 +55,7 @@ async function createUser(
 
 async function getUserById(userId: ObjectId): Promise<WithId<User>> {
   const user = await userRepository.findById(userId);
-  if (!user || user.status !== 'ACTIVE') {
+  if (!user) {
     throw new NotFoundError('User not found');
   }
   return user;
@@ -109,10 +106,10 @@ async function updateUser(
   }
 }
 
-async function closeUser(userId: ObjectId): Promise<void> {
+async function deleteUser(userId: ObjectId): Promise<void> {
   await runInTransaction(async (session) => {
     const user = await userRepository.findById(userId, session);
-    if (!user || user.status !== 'ACTIVE') {
+    if (!user) {
       throw new NotFoundError('User not found');
     }
 
@@ -122,16 +119,19 @@ async function closeUser(userId: ObjectId): Promise<void> {
     );
     if (nonZeroAccount) {
       throw new ConflictError(
-        `Cannot close user: account ${nonZeroAccount._id.toHexString()} has a non-zero balance`,
+        `Cannot delete user: account ${nonZeroAccount._id.toHexString()} has a non-zero balance`,
       );
     }
 
-    await accountRepository.closeAllForUser(userId, session);
-    const closed = await userRepository.closeById(userId, session);
-    if (!closed) {
+    for (const account of accounts) {
+      await transactionRepository.deleteByAccountId(account._id, session);
+      await accountRepository.deleteById(account._id, session);
+    }
+    const deleted = await userRepository.deleteById(userId, session);
+    if (!deleted) {
       throw new NotFoundError('User not found');
     }
   });
 }
 
-export default { createUser, getUserById, updateUser, closeUser };
+export default { createUser, getUserById, updateUser, deleteUser };

@@ -3,9 +3,7 @@ export interface Account {
   user_id: string;
   account_type: string;
   balance_cents: number;
-  status: 'ACTIVE' | 'CLOSED';
   created_at: string;
-  closed_at: string | null;
 }
 
 export interface Transaction {
@@ -27,9 +25,7 @@ export interface PublicUser {
   user_id: string;
   name: string;
   email: string;
-  status: 'ACTIVE' | 'CLOSED';
   created_at: string;
-  closed_at: string | null;
 }
 
 interface AuthResult {
@@ -70,14 +66,47 @@ async function handleResponse<T>(res: Response): Promise<T> {
     return undefined as T;
   }
 
-  const data = await res.json();
+  const contentType = res.headers.get('content-type') ?? '';
+  const isJson = contentType.includes('application/json');
+  let data: unknown;
+
+  if (isJson) {
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('The API returned an invalid JSON response');
+    }
+  } else {
+    await res.text();
+    data = undefined;
+  }
+
   if (!res.ok) {
     if (res.status === 401) {
       logout();
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
     }
-    throw new Error(data.error || 'Request failed');
+
+    if (
+      typeof data === 'object' &&
+      data !== null &&
+      'error' in data &&
+      typeof data.error === 'string'
+    ) {
+      throw new Error(data.error);
+    }
+
+    if (res.status >= 500) {
+      throw new Error('The API is unavailable. Please try again');
+    }
+
+    throw new Error(`The API returned an unexpected response (${res.status})`);
   }
+
+  if (!isJson) {
+    throw new Error('The API returned an unexpected non-JSON response');
+  }
+
   return data as T;
 }
 

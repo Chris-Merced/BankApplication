@@ -79,7 +79,6 @@ async function login(email: string, password: string): Promise<AuthResult> {
   const user = await userRepository.findByEmail(email);
   if (
     !user ||
-    user.status !== 'ACTIVE' ||
     !(await bcrypt.compare(password, user.hash_password))
   ) {
     throw new UnauthorizedError('Invalid email or password');

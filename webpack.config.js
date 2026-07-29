@@ -1,5 +1,9 @@
+require('dotenv').config();
+
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+const apiPort = process.env.PORT || 3000;
 
 module.exports = {
   mode: 'development',
@@ -36,7 +40,7 @@ module.exports = {
     proxy: [
       {
         context: ['/api'],
-        target: 'http://localhost:3000',
+        target: `http://localhost:${apiPort}`,
       },
     ],
   },
