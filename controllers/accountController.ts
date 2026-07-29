@@ -61,7 +61,7 @@ async function getAccount(req: Request, res: Response): Promise<void> {
  * @param req - Express request with the account ID in `params.id` and `amount` in the JSON body.
  * @param res - Returns the updated account with status 200, or an error with status 400.
  */
-// TODO: Distinguish 404 (account not found) from 400 (bad amount) via custom error classes
+//TODO: Use zod for runtime type checking
 async function deposit(req: Request, res: Response): Promise<void> {
   try {
     const accountId = Number(req.params.id);
