@@ -75,6 +75,21 @@
 - [ ] Add ascending and descending sort direction control.
 - [ ] Add pagination for large search result sets.
 
+### 7.8 Admin — `/admin`
+
+- [x] Restrict the route and navigation link to authenticated admin users.
+- [x] Use the shared application header, page header, and responsive container.
+- [x] Replace raw HTML tables, buttons, paragraphs, and inline styles with MUI components.
+- [x] Add summary cards for user, account, administrator, and total-balance counts.
+- [x] Present users in a responsive Card and Table with role Chips and formatted dates.
+- [x] Use MUI actions for promoting, demoting, and deleting users with per-action progress states.
+- [x] Preserve self-protection rules and explain disabled self-actions with accessible helper text.
+- [x] Require confirmation before deleting another user and surface API failures without losing table state.
+- [x] Present accounts in a responsive Card and Table with formatted balances, dates, and ObjectIds.
+- [x] Show a selected account's read-only transaction history using the same type Chips, signed amounts, and date formatting as 7.6.
+- [x] Add loading, error, and empty states for users, accounts, and selected transaction history.
+- [ ] Verify tables scroll at mobile widths and action controls remain keyboard accessible.
+
 ## Shared UX
 
 - [ ] Use cards as the primary content surface on every page.
@@ -88,6 +103,8 @@
 
 - [ ] Verify registration and login.
 - [ ] Verify protected-route redirects and logout.
+- [ ] Verify non-admin redirection and admin-only navigation.
+- [ ] Verify admin role changes, self-protection, deletion confirmation, and account history.
 - [ ] Verify zero-, one-, and multiple-account Home states.
 - [ ] Verify account creation, deposits, withdrawals, and transaction history.
 - [x] Run the API and client production builds.
