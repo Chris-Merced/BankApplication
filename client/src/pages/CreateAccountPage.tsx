@@ -16,7 +16,7 @@ import {
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as api from '../api';
-import type { PublicUser } from '../api';
+import type { Account, PublicUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
@@ -28,9 +28,14 @@ const ACCOUNT_TYPES: AccountType[] = ['CHECKING', 'SAVINGS'];
 interface CreateAccountPageProps {
 	user: PublicUser;
 	onLogout: () => void;
+	onAccountCreated: (account: Account) => void;
 }
 
-export default function CreateAccountPage({ user, onLogout }: CreateAccountPageProps) {
+export default function CreateAccountPage({
+	user,
+	onLogout,
+	onAccountCreated,
+}: CreateAccountPageProps) {
 	useDocumentTitle('Create Account');
 
 	const navigate = useNavigate();
@@ -45,6 +50,7 @@ export default function CreateAccountPage({ user, onLogout }: CreateAccountPageP
 
 		try {
 			const account = await api.createAccount(accountType);
+			onAccountCreated(account);
 			navigate(`/accounts/${account.account_id}`, { replace: true });
 		} catch (err) {
 			setError((err as Error).message);

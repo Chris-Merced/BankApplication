@@ -64,6 +64,10 @@ export default function App() {
     }
   }
 
+  function handleAccountCreated(account: Account) {
+    setAccounts((currentAccounts) => [...currentAccounts, account]);
+  }
+
   function handleLogout() {
     api.logout();
     setCurrentUser(null);
@@ -126,6 +130,7 @@ export default function App() {
           <CreateAccountPage
             user={currentUser}
             onLogout={logoutAndNavigate}
+            onAccountCreated={handleAccountCreated}
           />
         }
       />
