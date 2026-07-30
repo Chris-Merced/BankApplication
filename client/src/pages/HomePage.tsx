@@ -31,6 +31,7 @@ interface HomePageProps {
   loading: boolean;
   error: string;
   onLogout: () => void;
+  onRefreshAccounts: () => Promise<void>;
 }
 
 const ACCOUNT_PAGE_SIZE = 6;
@@ -52,6 +53,7 @@ export default function HomePage({
   loading,
   error,
   onLogout,
+  onRefreshAccounts,
 }: HomePageProps) {
   useDocumentTitle('Home');
 
@@ -67,6 +69,10 @@ export default function HomePage({
   useEffect(() => {
     setAccountPage((currentPage) => Math.min(currentPage, totalAccountPages));
   }, [totalAccountPages]);
+
+  useEffect(() => {
+    void onRefreshAccounts();
+  }, [onRefreshAccounts]);
 
   function logout() {
     onLogout();
