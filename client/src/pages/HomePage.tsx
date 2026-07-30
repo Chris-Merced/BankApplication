@@ -24,6 +24,7 @@ import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { formatCurrency } from '../utils/money';
+import { maskAccountId } from '../utils/objectId';
 
 interface HomePageProps {
   user: PublicUser;
@@ -35,17 +36,6 @@ interface HomePageProps {
 }
 
 const ACCOUNT_PAGE_SIZE = 6;
-
-function maskAccountId(accountId: string): string {
-  const digits = accountId;
-
-  if (digits.length <= 2) {
-    return digits;
-  }
-
-  const visibleDigits = Math.ceil(digits.length / 2);
-  return `${digits.slice(0, visibleDigits)}${'•'.repeat(digits.length - visibleDigits)}`;
-}
 
 export default function HomePage({
   user,

@@ -10,7 +10,7 @@ import AuthPage from './pages/AuthPage';
 import CreateAccountPage from './pages/CreateAccountPage';
 import DepositPage from './pages/DepositPage';
 import HomePage from './pages/HomePage';
-import PlannedPage from './pages/PlannedPage';
+import SearchAccountsPage from './pages/SearchAccountsPage';
 import TransactionHistoryPage from './pages/TransactionHistoryPage';
 import TransferPage from './pages/TransferPage';
 import WithdrawPage from './pages/WithdrawPage';
@@ -159,9 +159,9 @@ export default function App() {
       <Route
         path="/accounts/search"
         element={
-          <PlannedPage
+          <SearchAccountsPage
             user={currentUser}
-            title="Search Accounts"
+            accounts={accounts}
             onLogout={logoutAndNavigate}
           />
         }

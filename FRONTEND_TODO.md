@@ -69,11 +69,11 @@
 
 ### 7.7 Search Accounts — `/accounts/search`
 
-- [ ] Add a search bar for looking up a specific account ID.
-- [ ] Add checkboxes to filter by account type: Checking and Savings.
-- [ ] Add a sort dropdown with Transaction Count, Transactions Amount, Gross, Date Created, and Date Updated.
-- [ ] Add ascending and descending sort direction control.
-- [ ] Add pagination for large search result sets.
+- [x] Add a search bar for looking up a specific account ID.
+- [x] Add checkboxes to filter by account type: Checking and Savings.
+- [x] Add a sort dropdown with Transaction Count, Transactions Amount, Gross, Date Created, and Date Updated.
+- [x] Add ascending and descending sort direction control.
+- [x] Add pagination for large search result sets.
 
 ## Shared UX
 
