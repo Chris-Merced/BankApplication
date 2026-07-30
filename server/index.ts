@@ -6,7 +6,7 @@ import accountRoutes from './routes/accountRoutes';
 import adminRoutes from './routes/adminRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
-import openApiDocument from './openapi.json';
+import openApiDocument from '../openapi.json';
 import {
   closeDatabaseConnection,
   connectToDatabase,
