@@ -1,5 +1,5 @@
 import { Box, Container } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router';
 import * as api from './api';
 import type { Account, PublicUser } from './api';
@@ -56,13 +56,13 @@ export default function App() {
     }
   }
 
-  async function refreshAccounts(): Promise<void> {
+  const refreshAccounts = useCallback(async (): Promise<void> => {
     try {
       setAccounts(await api.getAccounts());
     } catch (err) {
       setError((err as Error).message);
     }
-  }
+  }, []);
 
   function handleAccountCreated(account: Account) {
     setAccounts((currentAccounts) => [...currentAccounts, account]);
@@ -111,6 +111,7 @@ export default function App() {
             loading={accountsLoading}
             error={error}
             onLogout={logoutAndNavigate}
+            onRefreshAccounts={refreshAccounts}
           />
         }
       />
