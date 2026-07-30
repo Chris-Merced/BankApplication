@@ -118,8 +118,8 @@ export default function HomePage({
             mb: 5,
           }}
         >
-          <Card>
-            <CardContent sx={{ p: 3 }}>
+          <Card sx={{ display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ p: 3, flexGrow: 1 }}>
               <AddCardRoundedIcon color="primary" sx={{ fontSize: 34, mb: 1.5 }} />
               <Typography variant="h5" component="h3" sx={{ fontWeight: 750 }}>
                 Create Account
@@ -128,7 +128,7 @@ export default function HomePage({
                 Open a checking or savings account linked to your profile.
               </Typography>
             </CardContent>
-            <CardActions sx={{ px: 3, pb: 3 }}>
+            <CardActions sx={{ px: 3, pb: 3, mt: 'auto' }}>
               <Button
                 component={Link}
                 to="/accounts/new"
@@ -140,8 +140,8 @@ export default function HomePage({
             </CardActions>
           </Card>
 
-          <Card>
-            <CardContent sx={{ p: 3 }}>
+          <Card sx={{ display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ p: 3, flexGrow: 1 }}>
               <VisibilityRoundedIcon color="secondary" sx={{ fontSize: 34, mb: 1.5 }} />
               <Typography variant="h5" component="h3" sx={{ fontWeight: 750 }}>
                 Search Accounts
@@ -152,7 +152,7 @@ export default function HomePage({
                   : 'Search your existing accounts with filter options.'}
               </Typography>
             </CardContent>
-            <CardActions sx={{ px: 3, pb: 3 }}>
+            <CardActions sx={{ px: 3, pb: 3, mt: 'auto' }}>
               <Button
                 component={Link}
                 to="/accounts/search"
@@ -165,8 +165,8 @@ export default function HomePage({
             </CardActions>
           </Card>
 
-          <Card>
-            <CardContent sx={{ p: 3 }}>
+          <Card sx={{ display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ p: 3, flexGrow: 1 }}>
               <SwapHorizRoundedIcon color="primary" sx={{ fontSize: 34, mb: 1.5 }} />
               <Typography variant="h5" component="h3" sx={{ fontWeight: 750 }}>
                 Transfer/Send
@@ -177,7 +177,7 @@ export default function HomePage({
                   : 'Open an account first — you need somewhere to move money from.'}
               </Typography>
             </CardContent>
-            <CardActions sx={{ px: 3, pb: 3 }}>
+            <CardActions sx={{ px: 3, pb: 3, mt: 'auto' }}>
               <Button
                 component={Link}
                 to={hasAccounts ? '/transfer' : '/accounts/new'}
