@@ -40,9 +40,11 @@
 
 ### 7.3 Account Details — `/accounts/:accountId`
 
-- [ ] Display account ID, user name, account type, balance, and creation date.
-- [ ] Provide Deposit, Withdraw, and View Transactions actions.
-- [ ] Provide navigation back to Home.
+- [x] Display of account ID, user name, account type, balance, and creation date.
+- [x] Provide Deposit, Withdraw, and View Transactions actions.
+- [x] Provide navigation back to Home.
+- [x] Provide button to copy account ID to clipboard
+
 
 ### 7.4 Deposit — `/accounts/:accountId/deposit`
 
