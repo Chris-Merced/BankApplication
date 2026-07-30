@@ -1,40 +1,16 @@
 import { Request, Response } from 'express';
-import { BadRequestError } from '../errors/AppError';
-import {
-  ACCOUNT_TYPES,
-  AccountType,
-  toAccountResponse,
-} from '../models/account';
+import { AccountType, toAccountResponse } from '../models/account';
 import { toTransactionResponse } from '../models/transaction';
 import AccountService from '../services/AccountService';
 import { sendError } from './httpError';
-import {
-  parseObjectId,
-  requireIdempotencyKey,
-} from './requestValidation';
-
-function isAccountType(value: unknown): value is AccountType {
-  return (
-    typeof value === 'string' &&
-    (ACCOUNT_TYPES as readonly string[]).includes(value)
-  );
-}
+import { parseObjectId, requireIdempotencyKey } from './requestValidation';
 
 async function createAccount(req: Request, res: Response): Promise<void> {
   try {
-    const normalizedType =
-      typeof req.body.accountType === 'string'
-        ? req.body.accountType.toUpperCase()
-        : req.body.accountType;
-    if (!isAccountType(normalizedType)) {
-      throw new BadRequestError(
-        `accountType must be one of: ${ACCOUNT_TYPES.join(', ')}`,
-      );
-    }
-
+    const { accountType } = req.body as { accountType: AccountType };
     const account = await AccountService.createAccount(
       req.auth!.userId,
-      normalizedType,
+      accountType,
     );
     res.status(201).json(toAccountResponse(account));
   } catch (error) {
@@ -143,10 +119,7 @@ async function deleteAccount(req: Request, res: Response): Promise<void> {
 async function deleteTransaction(req: Request, res: Response): Promise<void> {
   try {
     const accountId = parseObjectId(req.params.id, 'account ID');
-    const transactionId = parseObjectId(
-      req.params.txnId,
-      'transaction ID',
-    );
+    const transactionId = parseObjectId(req.params.txnId, 'transaction ID');
     await AccountService.deleteTransaction(
       accountId,
       req.auth!.userId,
