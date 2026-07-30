@@ -15,12 +15,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import * as api from '../api';
 import type { PublicUser } from '../api';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 interface AuthPageProps {
   onAuthenticated: (user: PublicUser) => Promise<void>;
 }
 
 export default function AuthPage({ onAuthenticated }: AuthPageProps) {
+  useDocumentTitle('Sign In');
+
   const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');

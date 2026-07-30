@@ -19,6 +19,7 @@ import AppHeader from '../components/AppHeader';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 interface HomePageProps {
   user: PublicUser;
@@ -42,6 +43,8 @@ export default function HomePage({
   error,
   onLogout,
 }: HomePageProps) {
+  useDocumentTitle('Home');
+
   const navigate = useNavigate();
   const firstAccount = accounts[0];
   const viewAccountTarget = firstAccount

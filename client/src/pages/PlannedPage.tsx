@@ -9,6 +9,7 @@ import {
 import type { PublicUser } from '../api';
 import AppHeader from '../components/AppHeader';
 import PageHeader from '../components/PageHeader';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 interface PlannedPageProps {
   user: PublicUser;
@@ -17,6 +18,8 @@ interface PlannedPageProps {
 }
 
 export default function PlannedPage({ user, title, onLogout }: PlannedPageProps) {
+  useDocumentTitle(title);
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppHeader user={user} onLogout={onLogout} />
