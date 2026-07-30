@@ -11,6 +11,7 @@ import CreateAccountPage from './pages/CreateAccountPage';
 import DepositPage from './pages/DepositPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
+import TransactionHistoryPage from './pages/TransactionHistoryPage';
 import TransferPage from './pages/TransferPage';
 import WithdrawPage from './pages/WithdrawPage';
 
@@ -196,9 +197,8 @@ export default function App() {
       <Route
         path="/accounts/:accountId/transactions"
         element={
-          <PlannedPage
+          <TransactionHistoryPage
             user={currentUser}
-            title="Transactions"
             onLogout={logoutAndNavigate}
           />
         }
