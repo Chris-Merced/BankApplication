@@ -18,6 +18,16 @@ npm run client:build  # bundle the frontend
 npm start             # run compiled API
 ```
 
+## Frontend Development Plan
+
+The temporary branch-local plan for the MUI frontend work is tracked in
+[FRONTEND_TODO.md](./FRONTEND_TODO.md). It records completed screens, the
+remaining page work, shared UI tasks, and final verification.
+
+This file is not intended to become permanent project documentation. Remove the
+TODO file and this README section when the frontend plan is complete, moving any
+unfinished work to the team's permanent task tracker if needed.
+
 ## Interactive API Documentation
 
 With the API running, open [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
@@ -140,4 +150,3 @@ Retrieve the transaction history for an account.
 ## Planned / TODO
 
 - **Auth** — routes are currently unauthenticated; any caller can create accounts or move funds for any `userId`. Add authentication and athuorization to api routes.
-
