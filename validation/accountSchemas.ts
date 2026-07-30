@@ -22,6 +22,7 @@ export const transferSchema = z.object({
   amount_cents: z.coerce.number().int('amount_cents must be an integer'),
 });
 
+
 export const listAccountsQuerySchema = z.object({
   userId: z.coerce.number(),
 });

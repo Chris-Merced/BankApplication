@@ -95,13 +95,16 @@ async function withdraw(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * Transfers funds from one account to another.
+ * Transfers funds from one account to another, including an account owned by a
+ * different user.
  *
  * `POST /api/accounts/:id/transfer`
  *
  * @param req - Express request with the source account ID in `params.id`, and
  *              `toAccountId` and `amount_cents` in the JSON body (validated by {@link transferSchema}).
- * @param res - Returns both updated accounts with status 200, or an error with status 400.
+ * @param res - Returns the updated source account plus the recipient's account ID
+ *              and owner name with status 200, or an error with status 400. The
+ *              destination balance is never returned — it may belong to another user.
  */
 async function transfer(req: Request, res: Response): Promise<void> {
   try {

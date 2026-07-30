@@ -54,13 +54,21 @@ async function withdraw(accountId: number, amountCents: number): Promise<Account
   return updatedAccount;
 }
 
+export interface TransferRecipient {
+  account_id: number;
+  owner_name: string;
+}
+
 export interface TransferResult {
   from: Account;
-  to: Account;
+  to: TransferRecipient;
+  amount_cents: number;
 }
 
 /**
- * Moves funds between two accounts of any type (CHECKING or SAVINGS).
+ * Moves funds between two accounts of any type (CHECKING or SAVINGS). The
+ * destination may belong to a different user — the account ID alone identifies
+ * it, and no relationship between the two owners is required.
  *
  * Every check runs before either balance is written, so a rejected transfer
  * leaves both accounts untouched rather than debiting without crediting.
@@ -80,14 +88,33 @@ async function transfer(fromAccountId: number, toAccountId: number, amountCents:
     throw new Error('Insufficient funds');
   }
 
+  const recipient = await userRepository.findById(to.user_id);
+  if (!recipient) {
+    throw new Error('Destination account has no owner');
+  }
+
   const updatedFrom: Account = { ...from, balance_cents: from.balance_cents - amountCents };
   const updatedTo: Account = { ...to, balance_cents: to.balance_cents + amountCents };
+
   await accountRepository.update(updatedFrom);
-  await accountRepository.update(updatedTo);
+  try {
+    await accountRepository.update(updatedTo);
+  } catch (err) {
+    // The debit succeeded but the credit did not, so the money currently exists
+    // nowhere. Put it back. Without a multi-document transaction this
+    // compensating write is the strongest guarantee available.
+    await accountRepository.update(from);
+    throw new Error('Transfer failed and was rolled back; no funds were moved');
+  }
+
   await transactionRepository.create(fromAccountId, 'TRANSFER_OUT', amountCents, toAccountId);
   await transactionRepository.create(toAccountId, 'TRANSFER_IN', amountCents, fromAccountId);
 
-  return { from: updatedFrom, to: updatedTo };
+  return {
+    from: updatedFrom,
+    to: { account_id: to.account_id, owner_name: recipient.name },
+    amount_cents: amountCents,
+  };
 }
 
 async function getTransactions(accountId: number): Promise<Transaction[]> {
