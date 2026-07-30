@@ -4,6 +4,7 @@ import * as api from './api';
 import type { Account, PublicUser } from './api';
 import AuthPage from './pages/AuthPage';
 import CreateAccountPage from './pages/CreateAccountPage';
+import AccountDetailsPage from './pages/AccountDetailsPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
 
@@ -76,9 +77,38 @@ export default function App() {
       <Route
         path="/accounts/:accountId"
         element={
+          <AccountDetailsPage
+            user={currentUser}
+            onLogout={logoutAndNavigate}
+          />
+        }
+      />
+      <Route
+        path="/accounts/:accountId/deposit"
+        element={
           <PlannedPage
             user={currentUser}
-            title="Account Details"
+            title="Deposit"
+            onLogout={logoutAndNavigate}
+          />
+        }
+      />
+      <Route
+        path="/accounts/:accountId/withdraw"
+        element={
+          <PlannedPage
+            user={currentUser}
+            title="Withdraw"
+            onLogout={logoutAndNavigate}
+          />
+        }
+      />
+      <Route
+        path="/accounts/:accountId/transactions"
+        element={
+          <PlannedPage
+            user={currentUser}
+            title="Transactions"
             onLogout={logoutAndNavigate}
           />
         }

@@ -36,6 +36,17 @@ function formatCurrency(amountCents: number): string {
   }).format(amountCents / 100);
 }
 
+function maskAccountId(accountId: number): string {
+  const digits = String(accountId);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  const visibleDigits = Math.ceil(digits.length / 2);
+  return `${digits.slice(0, visibleDigits)}${'•'.repeat(digits.length - visibleDigits)}`;
+}
+
 export default function HomePage({
   user,
   accounts,
@@ -210,7 +221,7 @@ export default function HomePage({
                       size="small"
                     />
                     <Typography variant="caption" color="text.secondary">
-                      #{account.account_id}
+                      #{maskAccountId(account.account_id)}
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
