@@ -15,9 +15,17 @@ export interface Transaction {
   created_at: string;
 }
 
+// Only the ID and owner name — the destination may belong to another user, so
+// the server never sends back its balance
+export interface TransferRecipient {
+  account_id: number;
+  owner_name: string;
+}
+
 export interface TransferResult {
   from: Account;
-  to: Account;
+  to: TransferRecipient;
+  amount_cents: number;
 }
 
 // The password hash is stripped server-side by toPublicUser, so it never reaches the client
@@ -89,7 +97,15 @@ export function withdraw(accountId: number, amountCents: number): Promise<Accoun
   }).then((res) => handleResponse<Account>(res));
 }
 
-// Resolves to both sides of the transfer so the caller can refresh each balance
+// Confirms who owns an account before money is sent to it. Rejects with
+// "Account not found" when the ID does not match exactly.
+export function lookupRecipient(accountId: number): Promise<TransferRecipient> {
+  return fetch(`${BASE_URL}/${accountId}/recipient`).then((res) =>
+    handleResponse<TransferRecipient>(res),
+  );
+}
+
+// Resolves to the updated source account plus a summary of who was paid
 export function transfer(fromAccountId: number, toAccountId: number, amountCents: number): Promise<TransferResult> {
   return fetch(`${BASE_URL}/${fromAccountId}/transfer`, {
     method: 'POST',

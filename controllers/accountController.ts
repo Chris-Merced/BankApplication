@@ -57,6 +57,26 @@ async function getAccount(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * Looks up a transfer recipient by exact account ID.
+ *
+ * `GET /api/accounts/:id/recipient`
+ *
+ * @param req - Express request with the destination account ID in `params.id`.
+ * @param res - Returns `{ account_id, owner_name }` with status 200, or an error
+ *              with status 404. Never returns the balance — the account being
+ *              looked up usually belongs to someone other than the caller.
+ */
+async function getRecipient(req: Request, res: Response): Promise<void> {
+  try {
+    const accountId = Number(req.params.id);
+    const recipient = await AccountService.getRecipient(accountId);
+    res.json(recipient);
+  } catch (err) {
+    res.status(404).json({ error: (err as Error).message });
+  }
+}
+
+/**
  * Deposits funds into an account.
  *
  * `POST /api/accounts/:id/deposit`
@@ -176,6 +196,7 @@ export default {
   createAccount,
   listAccounts,
   getAccount,
+  getRecipient,
   deposit,
   withdraw,
   transfer,

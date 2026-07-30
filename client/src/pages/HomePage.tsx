@@ -1,6 +1,7 @@
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
 import AddCardRoundedIcon from '@mui/icons-material/AddCardRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import {
   Alert,
@@ -20,6 +21,7 @@ import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { formatCurrency } from '../utils/money';
 
 interface HomePageProps {
   user: PublicUser;
@@ -27,13 +29,6 @@ interface HomePageProps {
   loading: boolean;
   error: string;
   onLogout: () => void;
-}
-
-function formatCurrency(amountCents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amountCents / 100);
 }
 
 export default function HomePage({
@@ -46,6 +41,7 @@ export default function HomePage({
   useDocumentTitle('Home');
 
   const navigate = useNavigate();
+  const hasAccounts = accounts.length > 0;
   const firstAccount = accounts[0];
   const viewAccountTarget = firstAccount
     ? `/accounts/${firstAccount.account_id}`
@@ -96,7 +92,11 @@ export default function HomePage({
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, minmax(0, 1fr))',
+              lg: 'repeat(3, minmax(0, 1fr))',
+            },
             gap: 2.5,
             mb: 5,
           }}
@@ -144,6 +144,30 @@ export default function HomePage({
                 endIcon={<ArrowForwardRoundedIcon />}
               >
                 {accounts.length > 0 ? 'View Account' : 'Get Started'}
+              </Button>
+            </CardActions>
+          </Card>
+
+          <Card>
+            <CardContent sx={{ p: 3 }}>
+              <SwapHorizRoundedIcon color="primary" sx={{ fontSize: 34, mb: 1.5 }} />
+              <Typography variant="h5" component="h3" sx={{ fontWeight: 750 }}>
+                Transfer/Send
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                {hasAccounts
+                  ? 'Move money between your accounts, or send it to someone else.'
+                  : 'Open an account first — you need somewhere to move money from.'}
+              </Typography>
+            </CardContent>
+            <CardActions sx={{ px: 3, pb: 3 }}>
+              <Button
+                component={Link}
+                to={hasAccounts ? '/transfer' : '/accounts/new'}
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                {hasAccounts ? 'Transfer' : 'Get Started'}
               </Button>
             </CardActions>
           </Card>

@@ -6,6 +6,7 @@ import AuthPage from './pages/AuthPage';
 import CreateAccountPage from './pages/CreateAccountPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
+import TransferPage from './pages/TransferPage';
 
 export default function App() {
   const navigate = useNavigate();
@@ -26,6 +27,18 @@ export default function App() {
       setError((err as Error).message);
     } finally {
       setAccountsLoading(false);
+    }
+  }
+
+  /** Re-reads balances after something moves money, so every page sees the change. */
+  async function refreshAccounts(): Promise<void> {
+    if (!currentUser) {
+      return;
+    }
+    try {
+      setAccounts(await api.getAccountsForUser(currentUser.user_id));
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -70,6 +83,17 @@ export default function App() {
           <CreateAccountPage
             user={currentUser}
             onLogout={logoutAndNavigate}
+          />
+        }
+      />
+      <Route
+        path="/transfer"
+        element={
+          <TransferPage
+            user={currentUser}
+            accounts={accounts}
+            onLogout={logoutAndNavigate}
+            onTransferComplete={refreshAccounts}
           />
         }
       />

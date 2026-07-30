@@ -66,6 +66,24 @@ export interface TransferResult {
 }
 
 /**
+ * Resolves an account ID to the minimum a sender needs in order to confirm a
+ * recipient before sending: the ID they typed, and the owner's name.
+ *
+ * Deliberately not {@link getAccount} — the looked-up account usually belongs
+ * to someone else, so the balance, the owner's email and the internal user ID
+ * must not cross the wire. Requiring an exact ID match also means this cannot
+ * be used to enumerate accounts by guessing at names.
+ */
+async function getRecipient(accountId: number): Promise<TransferRecipient> {
+  const account = await getAccount(accountId);
+  const owner = await userRepository.findById(account.user_id);
+  if (!owner) {
+    throw new Error('Destination account has no owner');
+  }
+  return { account_id: account.account_id, owner_name: owner.name };
+}
+
+/**
  * Moves funds between two accounts of any type (CHECKING or SAVINGS). The
  * destination may belong to a different user — the account ID alone identifies
  * it, and no relationship between the two owners is required.
@@ -148,6 +166,7 @@ export default {
   createAccount,
   getAccount,
   getAccountsByUser,
+  getRecipient,
   deposit,
   withdraw,
   transfer,

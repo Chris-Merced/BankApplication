@@ -13,6 +13,7 @@ const router = Router();
 router.post('/', validateBody(createAccountSchema), accountController.createAccount);
 router.get('/', validateQuery(listAccountsQuerySchema), accountController.listAccounts);
 router.get('/:id', accountController.getAccount);
+router.get('/:id/recipient', accountController.getRecipient);
 router.post('/:id/deposit', validateBody(amountSchema), accountController.deposit);
 router.post('/:id/withdraw', validateBody(amountSchema), accountController.withdraw);
 router.post('/:id/transfer', validateBody(transferSchema), accountController.transfer);
