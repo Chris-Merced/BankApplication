@@ -20,36 +20,17 @@ import AppHeader from '../components/AppHeader';
 import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { formatCurrency, parseDollarsToCents } from '../utils/money';
+import { isObjectId } from '../utils/objectId';
 
 interface DepositPageProps {
 	user: PublicUser;
 	onLogout: () => void;
 }
 
-function formatCurrency(amountCents: number): string {
-	return new Intl.NumberFormat('en-US', {
-		style: 'currency',
-		currency: 'USD',
-	}).format(amountCents / 100);
-}
-
-function parseDollars(value: string): number | null {
-	if (!value.trim()) {
-		return null;
-	}
-
-	const parsed = Number(value);
-
-	if (!Number.isFinite(parsed)) {
-		return null;
-	}
-
-	return parsed;
-}
-
 export default function DepositPage({ user, onLogout }: DepositPageProps) {
 	const { accountId: accountIdParam } = useParams();
-	const accountId = Number(accountIdParam);
+	const accountId = accountIdParam;
 	const navigate = useNavigate();
 
 	useDocumentTitle('Deposit');
@@ -60,8 +41,7 @@ export default function DepositPage({ user, onLogout }: DepositPageProps) {
 	const [error, setError] = useState('');
 	const [amount, setAmount] = useState('');
 
-	const amountDollars = parseDollars(amount);
-	const amountCents = amountDollars === null ? null : Math.round(amountDollars * 100);
+	const amountCents = parseDollarsToCents(amount);
 
 	const projectedBalanceCents = useMemo(() => {
 		if (!account || amountCents === null || amountCents <= 0) {
@@ -75,7 +55,7 @@ export default function DepositPage({ user, onLogout }: DepositPageProps) {
 		let active = true;
 
 		async function loadAccount() {
-			if (!Number.isFinite(accountId)) {
+			if (!isObjectId(accountId)) {
 				setError('Invalid account ID.');
 				setLoading(false);
 				return;
@@ -121,22 +101,15 @@ export default function DepositPage({ user, onLogout }: DepositPageProps) {
 			return;
 		}
 
-		if (amountDollars === null || amountDollars <= 0) {
-			setError('Enter a positive dollar amount.');
-			return;
-		}
-
-		const cents = Math.round(amountDollars * 100);
-
-		if (cents <= 0) {
-			setError('Enter a positive dollar amount.');
+		if (amountCents === null) {
+			setError('Enter a positive dollar amount with no more than two decimal places.');
 			return;
 		}
 
 		setSubmitting(true);
 
 		try {
-			await api.deposit(account.account_id, cents);
+			await api.deposit(account.account_id, amountCents);
 			navigate(`/accounts/${account.account_id}`, { replace: true });
 		} catch (err) {
 			setError((err as Error).message);
@@ -263,7 +236,7 @@ export default function DepositPage({ user, onLogout }: DepositPageProps) {
 												type="submit"
 												variant="contained"
 												size="large"
-												disabled={submitting || amountDollars === null || amountDollars <= 0}
+												disabled={submitting || amountCents === null}
 												startIcon={<TrendingUpRoundedIcon />}
 												sx={{ ml: 'auto' }}
 											>

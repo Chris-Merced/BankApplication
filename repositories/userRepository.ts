@@ -1,48 +1,109 @@
-import { Collection, WithId } from 'mongodb';
+import {
+  ClientSession,
+  Collection,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { User, normalizeEmail } from '../models/user';
+import {
+  createUserDocument,
+  normalizeEmail,
+  User,
+  UserRole,
+} from '../models/user';
 
 async function getCollection(): Promise<Collection<User>> {
   const db = await getDatabase();
   return db.collection<User>('users');
 }
 
-async function findById(userId: number): Promise< WithId<User> | null> {
+async function findById(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  // findOne resolves to null on a miss; the repository contract is undefined
-  return (await collection.findOne({ user_id: userId })) ?? null;
+  return (await collection.findOne({ _id: userId }, { session })) ?? undefined;
 }
 
-async function findByEmail(email: string): Promise< WithId<User> | null> {
+async function findByEmail(
+  email: string,
+  session?: ClientSession,
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  return (await collection.findOne({ email_normalized: normalizeEmail(email) })) ?? null;
+  return (
+    (await collection.findOne(
+      { email: normalizeEmail(email) },
+      { session },
+    )) ?? undefined
+  );
 }
 
-async function findAll(): Promise<User[]> {
+async function create(
+  name: string,
+  email: string,
+  hashPassword: string,
+  session?: ClientSession,
+): Promise<WithId<User>> {
   const collection = await getCollection();
-  return collection.find({}).sort({ user_id: 1 }).toArray();
+  const user = createUserDocument(name, email, hashPassword);
+  const result = await collection.insertOne(user, { session });
+  return { ...user, _id: result.insertedId };
 }
 
-async function create(name: string, email: string, hashPassword: string): Promise<User> {
+async function updateProfile(
+  userId: ObjectId,
+  name: string,
+  email: string,
+): Promise<WithId<User> | undefined> {
   const collection = await getCollection();
-  const user = new User(Date.now(), name, email, hashPassword);
-  await collection.insertOne(user);
-  return user;
+  return (
+    (await collection.findOneAndUpdate(
+      { _id: userId },
+      {
+        $set: {
+          name,
+          email: normalizeEmail(email),
+        },
+      },
+      { returnDocument: 'after' },
+    )) ?? undefined
+  );
 }
 
-async function update(user: User): Promise<User> {
+async function deleteById(
+  userId: ObjectId,
+  session: ClientSession,
+): Promise<boolean> {
   const collection = await getCollection();
-  const result = await collection.updateOne({ user_id: user.user_id }, { $set: user });
-  if (result.matchedCount === 0) {
-    throw new Error('User not found');
-  }
-  return user;
-}
-
-async function deleteById(userId: number): Promise<boolean> {
-  const collection = await getCollection();
-  const result = await collection.deleteOne({ user_id: userId });
+  const result = await collection.deleteOne({ _id: userId }, { session });
   return result.deletedCount > 0;
 }
 
-export default { findById, findByEmail, findAll, create, update, deleteById };
+async function findAll(): Promise<WithId<User>[]> {
+  const collection = await getCollection();
+  return collection.find({}).sort({ created_at: 1 }).toArray();
+}
+
+async function updateRole(
+  userId: ObjectId,
+  role: UserRole,
+): Promise<WithId<User> | undefined> {
+  const collection = await getCollection();
+  return (
+    (await collection.findOneAndUpdate(
+      { _id: userId },
+      { $set: { role } },
+      { returnDocument: 'after' },
+    )) ?? undefined
+  );
+}
+
+export default {
+  findById,
+  findByEmail,
+  create,
+  updateProfile,
+  deleteById,
+  findAll,
+  updateRole,
+};

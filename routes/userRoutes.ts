@@ -1,15 +1,14 @@
 import { Router } from 'express';
 import userController from '../controllers/userController';
+import { authenticate } from '../middleware/authenticate';
 import { validateBody } from '../middleware/validate';
-import { createUserSchema, loginSchema, updateUserSchema } from '../validation/userSchemas';
+import { updateUserSchema } from '../validation/userSchemas';
 
 const router = Router();
 
-router.post('/', validateBody(createUserSchema), userController.createUser);
-router.post('/login', validateBody(loginSchema), userController.login);
-router.get('/', userController.getUsers);
-router.get('/:id', userController.getUser);
-router.patch('/:id', validateBody(updateUserSchema), userController.updateUser);
-router.delete('/:id', userController.deleteUser);
+router.use(authenticate);
+router.get('/me', userController.getCurrentUser);
+router.patch('/me', validateBody(updateUserSchema), userController.updateCurrentUser);
+router.delete('/me', userController.deleteCurrentUser);
 
 export default router;

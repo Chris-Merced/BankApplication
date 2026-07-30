@@ -1,24 +1,27 @@
 import { Router } from 'express';
 import accountController from '../controllers/accountController';
-import { validateBody, validateQuery } from '../middleware/validate';
+import { authenticate } from '../middleware/authenticate';
+import { validateBody } from '../middleware/validate';
 import {
   createAccountSchema,
   amountSchema,
   transferSchema,
-  listAccountsQuerySchema,
 } from '../validation/accountSchemas';
 
 const router = Router();
 
+router.use(authenticate);
 router.post('/', validateBody(createAccountSchema), accountController.createAccount);
-router.get('/', validateQuery(listAccountsQuerySchema), accountController.listAccounts);
+router.get('/', accountController.listAccounts);
 router.get('/:id', accountController.getAccount);
-router.get('/:id/recipient', accountController.getRecipient);
 router.post('/:id/deposit', validateBody(amountSchema), accountController.deposit);
 router.post('/:id/withdraw', validateBody(amountSchema), accountController.withdraw);
 router.post('/:id/transfer', validateBody(transferSchema), accountController.transfer);
 router.get('/:id/transactions', accountController.getTransactions);
 router.delete('/:id', accountController.deleteAccount);
-router.delete('/:id/transactions/:txnId', accountController.deleteTransaction);
+router.delete(
+  '/:id/transactions/:txnId',
+  accountController.deleteTransaction,
+);
 
 export default router;

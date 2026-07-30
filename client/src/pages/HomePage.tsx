@@ -35,8 +35,8 @@ interface HomePageProps {
 
 const ACCOUNT_PAGE_SIZE = 6;
 
-function maskAccountId(accountId: number): string {
-  const digits = String(accountId);
+function maskAccountId(accountId: string): string {
+  const digits = accountId;
 
   if (digits.length <= 2) {
     return digits;

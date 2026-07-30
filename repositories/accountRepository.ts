@@ -1,47 +1,98 @@
-import { Collection, WithId } from 'mongodb';
+import {
+  ClientSession,
+  Collection,
+  Filter,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { Account, AccountType } from '../models/account';
+import {
+  Account,
+  AccountType,
+  createAccountDocument,
+} from '../models/account';
 
 async function getCollection(): Promise<Collection<Account>> {
   const db = await getDatabase();
   return db.collection<Account>('accounts');
 }
 
-async function create(userId: number, accountType: AccountType): Promise<Account> {
+async function create(
+  userId: ObjectId,
+  accountType: AccountType,
+  session?: ClientSession,
+): Promise<WithId<Account>> {
   const collection = await getCollection();
-  const account = new Account(Date.now(), userId, accountType);
-  await collection.insertOne(account);
-  return account;
+  const account = createAccountDocument(userId, accountType);
+  const result = await collection.insertOne(account, { session });
+  return { ...account, _id: result.insertedId };
 }
 
-async function findById(accountId: number): Promise< WithId<Account> | null> {
+async function findById(
+  accountId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<Account> | undefined> {
   const collection = await getCollection();
-  return collection.findOne({ account_id: accountId });
+  return (
+    (await collection.findOne({ _id: accountId }, { session })) ?? undefined
+  );
 }
 
-async function findAll(): Promise<Account[]> {
+async function findByUserId(
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<Account>[]> {
   const collection = await getCollection();
-  return collection.find({}).sort({ account_id: 1 }).toArray();
+  return collection
+    .find({ user_id: userId }, { session })
+    .sort({ created_at: 1 })
+    .toArray();
 }
 
-async function findByUserId(userId: number): Promise<Account[]> {
+async function adjustBalance(
+  accountId: ObjectId,
+  deltaCents: number,
+  session: ClientSession,
+): Promise<WithId<Account> | undefined> {
   const collection = await getCollection();
-  return collection.find({ user_id: userId }).sort({ account_id: 1 }).toArray();
-}
-
-async function update(account: Account): Promise<Account> {
-  const collection = await getCollection();
-  const result = await collection.updateOne({ account_id: account.account_id }, { $set: account });
-  if (result.matchedCount === 0) {
-    throw new Error('Account not found');
+  const filter: Filter<Account> = {
+    _id: accountId,
+  };
+  if (deltaCents < 0) {
+    filter.balance_cents = { $gte: Math.abs(deltaCents) };
   }
-  return account;
+
+  return (
+    (await collection.findOneAndUpdate(
+      filter,
+      { $inc: { balance_cents: deltaCents } },
+      {
+        session,
+        returnDocument: 'after',
+      },
+    )) ?? undefined
+  );
 }
 
-async function deleteById(accountId: number): Promise<boolean> {
+async function deleteById(
+  accountId: ObjectId,
+  session: ClientSession,
+): Promise<boolean> {
   const collection = await getCollection();
-  const result = await collection.deleteOne({ account_id: accountId });
+  const result = await collection.deleteOne({ _id: accountId }, { session });
   return result.deletedCount > 0;
 }
 
-export default { create, findById, findAll, findByUserId, update, deleteById };
+async function findAll(): Promise<WithId<Account>[]> {
+  const collection = await getCollection();
+  return collection.find({}).sort({ created_at: 1 }).toArray();
+}
+
+export default {
+  create,
+  findById,
+  findByUserId,
+  adjustBalance,
+  deleteById,
+  findAll,
+};

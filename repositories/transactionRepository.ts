@@ -1,6 +1,15 @@
-import { Collection, WithId } from 'mongodb';
+import {
+  ClientSession,
+  Collection,
+  ObjectId,
+  WithId,
+} from 'mongodb';
 import { getDatabase } from '../db/mongo';
-import { Transaction, TransactionType } from '../models/transaction';
+import {
+  createTransactionDocument,
+  Transaction,
+  TransactionType,
+} from '../models/transaction';
 
 async function getCollection(): Promise<Collection<Transaction>> {
   const db = await getDatabase();
@@ -8,37 +17,71 @@ async function getCollection(): Promise<Collection<Transaction>> {
 }
 
 async function create(
-  accountId: number,
+  accountId: ObjectId,
   txnType: TransactionType,
   amountCents: number,
-  relatedAccountId: number | null = null,
-): Promise<Transaction> {
+  relatedAccountId: ObjectId | null,
+  session: ClientSession,
+  idempotencyKey?: string,
+): Promise<WithId<Transaction>> {
   const collection = await getCollection();
-  const txn = new Transaction(Date.now(), accountId, txnType, amountCents, relatedAccountId);
-  await collection.insertOne(txn);
-  return txn;
+  const transaction = createTransactionDocument(
+    accountId,
+    txnType,
+    amountCents,
+    relatedAccountId,
+    idempotencyKey,
+  );
+  const result = await collection.insertOne(transaction, { session });
+  return { ...transaction, _id: result.insertedId };
 }
 
-async function findById(txnId: number): Promise< WithId<Transaction> | null> {
+async function findByAccountId(
+  accountId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<Transaction>[]> {
   const collection = await getCollection();
-  // findOne resolves to null on a miss; the repository contract is null
-  return (await collection.findOne({ txn_id: txnId })) ??  null;
+  return collection
+    .find({ account_id: accountId }, { session })
+    .sort({ created_at: -1 })
+    .toArray();
 }
 
-async function findByAccountId(accountId: number): Promise<Transaction[]> {
+async function findById(
+  transactionId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<Transaction> | undefined> {
   const collection = await getCollection();
-  return collection.find({ account_id: accountId }).sort({ created_at: 1 }).toArray();
+  return (
+    (await collection.findOne({ _id: transactionId }, { session })) ??
+    undefined
+  );
 }
 
-async function deleteById(txnId: number): Promise<boolean> {
+async function deleteById(
+  transactionId: ObjectId,
+  session: ClientSession,
+): Promise<boolean> {
   const collection = await getCollection();
-  const result = await collection.deleteOne({ txn_id: txnId });
+  const result = await collection.deleteOne(
+    { _id: transactionId },
+    { session },
+  );
   return result.deletedCount > 0;
 }
 
-async function deleteByAccountId(accountId: number): Promise<void> {
+async function deleteByAccountId(
+  accountId: ObjectId,
+  session: ClientSession,
+): Promise<void> {
   const collection = await getCollection();
-  await collection.deleteMany({ account_id: accountId });
+  await collection.deleteMany({ account_id: accountId }, { session });
 }
 
-export default { create, findById, findByAccountId, deleteById, deleteByAccountId };
+export default {
+  create,
+  findByAccountId,
+  findById,
+  deleteById,
+  deleteByAccountId,
+};

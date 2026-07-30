@@ -1,19 +1,44 @@
+import { ObjectId, WithId } from 'mongodb';
+
 export type AccountType = 'CHECKING' | 'SAVINGS';
 
 export const ACCOUNT_TYPES: AccountType[] = ['CHECKING', 'SAVINGS'];
 
-export class Account {
-  account_id: number;
-  user_id: number;
+export interface Account {
+  user_id: ObjectId;
   account_type: AccountType;
   balance_cents: number;
   created_at: string;
+}
 
-  constructor(id: number, userId: number, accountType: AccountType, balanceCents: number = 0) {
-    this.account_id = id;
-    this.user_id = userId;
-    this.account_type = accountType;
-    this.balance_cents = balanceCents;
-    this.created_at = new Date().toISOString();
-  }
+export interface AccountResponse {
+  account_id: string;
+  user_id: string;
+  account_type: AccountType;
+  balance_cents: number;
+  created_at: string;
+}
+
+export function createAccountDocument(
+  userId: ObjectId,
+  accountType: AccountType,
+): Account {
+  return {
+    user_id: userId,
+    account_type: accountType,
+    balance_cents: 0,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export function toAccountResponse(
+  account: WithId<Account>,
+): AccountResponse {
+  return {
+    account_id: account._id.toHexString(),
+    user_id: account.user_id.toHexString(),
+    account_type: account.account_type,
+    balance_cents: account.balance_cents,
+    created_at: account.created_at,
+  };
 }

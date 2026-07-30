@@ -1,4 +1,3 @@
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import {
   Alert,
   Box,
@@ -14,12 +13,13 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
-import type { Account, PublicUser, TransferRecipient } from '../api';
+import type { Account, PublicUser } from '../api';
 import * as api from '../api';
 import AppHeader from '../components/AppHeader';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { formatCurrency, parseDollarsToCents } from '../utils/money';
+import { isObjectId } from '../utils/objectId';
 
 type TransferMode = 'internal' | 'external';
 
@@ -30,7 +30,6 @@ interface TransferPageProps {
   onTransferComplete: () => Promise<void>;
 }
 
-/** "CHECKING #1748… · $1,284.53" — enough to tell two accounts apart in a dropdown. */
 function describeAccount(account: Account): string {
   return `${account.account_type} #${account.account_id} · ${formatCurrency(account.balance_cents)}`;
 }
@@ -44,25 +43,25 @@ export default function TransferPage({
   useDocumentTitle('Transfer & Send');
 
   const [mode, setMode] = useState<TransferMode>('internal');
-  const [fromId, setFromId] = useState<number | ''>(accounts[0]?.account_id ?? '');
-  const [toId, setToId] = useState<number | ''>('');
+  const [fromId, setFromId] = useState(accounts[0]?.account_id ?? '');
+  const [toId, setToId] = useState('');
+  const [recipientAccountId, setRecipientAccountId] = useState('');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Recipient lookup is a separate step from sending: the sender confirms who
-  // they matched before any money moves.
-  const [recipientQuery, setRecipientQuery] = useState('');
-  const [recipient, setRecipient] = useState<TransferRecipient | null>(null);
-  const [lookupError, setLookupError] = useState('');
-  const [lookupBusy, setLookupBusy] = useState(false);
-
   const isExternal = mode === 'external';
   const fromAccount = accounts.find((account) => account.account_id === fromId) ?? null;
   const amountCents = parseDollarsToCents(amount);
+  const trimmedRecipientId = recipientAccountId.trim();
+  const recipientIdIsValid = isObjectId(trimmedRecipientId);
+  const recipientIsOwnAccount = accounts.some(
+    (account) => account.account_id === trimmedRecipientId,
+  );
   const overBalance =
     fromAccount !== null && amountCents !== null && amountCents > fromAccount.balance_cents;
+  const destinationId = isExternal ? trimmedRecipientId : toId;
 
   function changeMode(nextMode: TransferMode) {
     setMode(nextMode);
@@ -70,67 +69,44 @@ export default function TransferPage({
     setSuccess('');
     setAmount('');
     setToId('');
-    clearRecipient();
-  }
-
-  function clearRecipient() {
-    setRecipient(null);
-    setLookupError('');
-  }
-
-  async function lookupRecipient() {
-    const trimmed = recipientQuery.trim();
-    if (!/^\d+$/.test(trimmed)) {
-      setLookupError('Enter an account ID — digits only.');
-      return;
-    }
-
-    const accountId = Number(trimmed);
-    if (accounts.some((account) => account.account_id === accountId)) {
-      setLookupError('That is one of your own accounts. Use the Transfer tab instead.');
-      return;
-    }
-
-    setLookupBusy(true);
-    setLookupError('');
-    setRecipient(null);
-    setSuccess('');
-
-    try {
-      setRecipient(await api.lookupRecipient(accountId));
-    } catch {
-      // The service throws "Account not found"; say it in the sender's terms.
-      setLookupError('No account matches that ID. Check the number and try again.');
-    } finally {
-      setLookupBusy(false);
-    }
+    setRecipientAccountId('');
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (fromId === '' || amountCents === null) {
-      return;
-    }
-
-    const destinationId = isExternal ? recipient?.account_id : toId;
-    if (destinationId === undefined || destinationId === '') {
-      return;
-    }
-
     setError('');
     setSuccess('');
+
+    if (!fromId || amountCents === null) {
+      setError('Choose a source account and enter a positive amount.');
+      return;
+    }
+
+    if (!destinationId || (isExternal && !recipientIdIsValid)) {
+      setError('Enter a valid 24-character destination account ID.');
+      return;
+    }
+
+    if (destinationId === fromId) {
+      setError('The source and destination accounts must be different.');
+      return;
+    }
+
+    if (overBalance) {
+      setError('The transfer amount exceeds the available balance.');
+      return;
+    }
+
     setBusy(true);
 
     try {
       const result = await api.transfer(fromId, destinationId, amountCents);
       setSuccess(
-        `Sent ${formatCurrency(result.amount_cents)} to ${result.to.owner_name} (#${result.to.account_id}).`,
+        `Sent ${formatCurrency(amountCents)} to account #${result.to.account_id}.`,
       );
       setAmount('');
       setToId('');
-      setRecipientQuery('');
-      clearRecipient();
-      // Balances live in App, so the account dropdowns need the refreshed copy
+      setRecipientAccountId('');
       await onTransferComplete();
     } catch (err) {
       setError((err as Error).message);
@@ -139,13 +115,14 @@ export default function TransferPage({
     }
   }
 
-  const recipientFirstName = recipient?.owner_name.split(' ')[0] ?? '';
   const canSubmit =
     !busy &&
     fromId !== '' &&
     amountCents !== null &&
     !overBalance &&
-    (isExternal ? recipient !== null : toId !== '');
+    destinationId !== '' &&
+    destinationId !== fromId &&
+    (!isExternal || (recipientIdIsValid && !recipientIsOwnAccount));
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -154,7 +131,7 @@ export default function TransferPage({
       <Container component="main" maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
         <PageHeader
           title="Transfer & Send"
-          description="Move money between your own accounts, or send it to someone else."
+          description="Move money between your own accounts, or send it to another account."
           backTo="/"
         />
 
@@ -166,17 +143,17 @@ export default function TransferPage({
             aria-label="Transfer options"
           >
             <Tab value="internal" label="Transfer between accounts" disabled={busy} />
-            <Tab value="external" label="Send to someone else" disabled={busy} />
+            <Tab value="external" label="Send to another account" disabled={busy} />
           </Tabs>
 
           <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
             <Typography variant="h5" component="h2" sx={{ fontWeight: 750, mb: 0.75 }}>
-              {isExternal ? 'Send to someone else' : 'Transfer between accounts'}
+              {isExternal ? 'Send to another account' : 'Transfer between accounts'}
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 3 }}>
               {isExternal
-                ? 'Enter the exact account ID you want to pay. We will confirm who owns it before anything is sent.'
-                : 'Choose the account to move money out of, and the account to move it into.'}
+                ? 'Enter the exact destination account ID and confirm it before sending.'
+                : 'Choose the accounts to move money out of and into.'}
             </Typography>
 
             {success && (
@@ -196,8 +173,8 @@ export default function TransferPage({
               </Alert>
             ) : !isExternal && accounts.length < 2 ? (
               <Alert severity="info">
-                Transferring between accounts needs at least two accounts. Open another one,
-                or use the Send tab to pay someone else.
+                Transferring between your accounts requires at least two accounts.
+                Use the Send tab to transfer to a different user&apos;s account.
               </Alert>
             ) : (
               <Box component="form" onSubmit={submit} noValidate>
@@ -207,9 +184,8 @@ export default function TransferPage({
                     label="From account"
                     value={fromId}
                     onChange={(event) => {
-                      const nextId = Number(event.target.value);
+                      const nextId = event.target.value;
                       setFromId(nextId);
-                      // Keeps the pair valid if the new source is the current destination
                       if (nextId === toId) {
                         setToId('');
                       }
@@ -225,57 +201,36 @@ export default function TransferPage({
                   </TextField>
 
                   {isExternal ? (
-                    <>
-                      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                        <TextField
-                          label="Recipient account ID"
-                          value={recipientQuery}
-                          onChange={(event) => {
-                            setRecipientQuery(event.target.value);
-                            // A confirmed recipient must not outlive the ID it came from
-                            clearRecipient();
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault();
-                              lookupRecipient();
-                            }
-                          }}
-                          error={Boolean(lookupError)}
-                          helperText={lookupError || 'Must match an account ID exactly.'}
-                          disabled={busy}
-                        />
-                        <Button
-                          type="button"
-                          variant="outlined"
-                          onClick={lookupRecipient}
-                          disabled={busy || lookupBusy || recipientQuery.trim() === ''}
-                          startIcon={
-                            lookupBusy ? (
-                              <CircularProgress size={16} color="inherit" />
-                            ) : (
-                              <SearchRoundedIcon />
-                            )
-                          }
-                          sx={{ mt: 1, flexShrink: 0 }}
-                        >
-                          Search
-                        </Button>
-                      </Box>
-
-                      {recipient && (
-                        <Alert severity="info" icon={false}>
-                          Found <strong>{recipient.owner_name}</strong> — account #
-                          {recipient.account_id}.
-                        </Alert>
-                      )}
-                    </>
+                    <TextField
+                      label="Destination account ID"
+                      value={recipientAccountId}
+                      onChange={(event) => setRecipientAccountId(event.target.value)}
+                      disabled={busy}
+                      required
+                      error={
+                        recipientAccountId.trim() !== '' &&
+                        (!recipientIdIsValid || recipientIsOwnAccount)
+                      }
+                      helperText={
+                        recipientIsOwnAccount
+                          ? 'Use the Transfer tab for one of your own accounts.'
+                          : recipientAccountId.trim() !== '' && !recipientIdIsValid
+                            ? 'Enter the full 24-character account ID.'
+                            : 'Confirm this ID with the recipient before sending.'
+                      }
+                      slotProps={{
+                        htmlInput: {
+                          autoCapitalize: 'none',
+                          spellCheck: false,
+                        },
+                      }}
+                    />
                   ) : (
                     <TextField
                       select
                       label="To account"
                       value={toId}
-                      onChange={(event) => setToId(Number(event.target.value))}
+                      onChange={(event) => setToId(event.target.value)}
                       disabled={busy || fromId === ''}
                       required
                       helperText="Your other accounts only."
@@ -294,7 +249,7 @@ export default function TransferPage({
                     label="Amount"
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
-                    disabled={busy || (isExternal && recipient === null)}
+                    disabled={busy}
                     required
                     error={overBalance}
                     helperText={
@@ -305,18 +260,26 @@ export default function TransferPage({
                           : ' '
                     }
                     slotProps={{
-                      input: { startAdornment: <Box sx={{ mr: 0.75, color: 'text.secondary' }}>$</Box> },
+                      input: {
+                        startAdornment: (
+                          <Box sx={{ mr: 0.75, color: 'text.secondary' }}>$</Box>
+                        ),
+                      },
                       htmlInput: { inputMode: 'decimal', placeholder: '0.00' },
                     }}
                   />
 
-                  {isExternal && recipient && amountCents !== null && !overBalance && (
-                    <Alert severity="warning" icon={false}>
-                      Are you sure you would like to send{' '}
-                      <strong>{formatCurrency(amountCents)}</strong> to{' '}
-                      <strong>{recipientFirstName}</strong>?
-                    </Alert>
-                  )}
+                  {isExternal &&
+                    recipientIdIsValid &&
+                    !recipientIsOwnAccount &&
+                    amountCents !== null &&
+                    !overBalance && (
+                      <Alert severity="warning" icon={false}>
+                        Confirm the destination account ID before sending{' '}
+                        <strong>{formatCurrency(amountCents)}</strong>. Transfers are
+                        recorded immediately.
+                      </Alert>
+                    )}
 
                   <Button
                     type="submit"

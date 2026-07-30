@@ -1,176 +1,306 @@
-import userRepository from '../repositories/userRepository';
-import accountRepository from '../repositories/accountRepository';
-import transactionRepository from '../repositories/transactionRepository';
+import {
+  ClientSession,
+  MongoServerError,
+  ObjectId,
+  WithId,
+} from 'mongodb';
+import { runInTransaction } from '../db/mongo';
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../errors/AppError';
 import { Account, AccountType } from '../models/account';
 import { Transaction } from '../models/transaction';
+import accountRepository from '../repositories/accountRepository';
+import transactionRepository from '../repositories/transactionRepository';
+import userRepository from '../repositories/userRepository';
 
-async function createAccount(userId: number, accountType: AccountType): Promise<Account> {
-  const user = await userRepository.findById(userId);
-  if (!user) {
-    throw new Error('User not found');
+function validateAmountCents(amountCents: number): void {
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw new BadRequestError('amountCents must be a positive integer');
   }
-  return accountRepository.create(userId, accountType);
 }
 
-async function getAccount(accountId: number): Promise<Account> {
-  const account = await accountRepository.findById(accountId);
+function validateIdempotencyKey(idempotencyKey: string): void {
+  if (
+    typeof idempotencyKey !== 'string' ||
+    idempotencyKey.length < 8 ||
+    idempotencyKey.length > 128
+  ) {
+    throw new BadRequestError(
+      'Idempotency-Key must be between 8 and 128 characters',
+    );
+  }
+}
+
+function mapIdempotencyConflict(error: unknown): never {
+  if (error instanceof MongoServerError && error.code === 11000) {
+    throw new ConflictError(
+      'A money operation with this Idempotency-Key was already processed',
+    );
+  }
+  throw error;
+}
+
+async function requireOwnedAccount(
+  accountId: ObjectId,
+  userId: ObjectId,
+  session?: ClientSession,
+): Promise<WithId<Account>> {
+  const account = await accountRepository.findById(accountId, session);
   if (!account) {
-    throw new Error('Account not found');
+    throw new NotFoundError('Account not found');
+  }
+  if (!account.user_id.equals(userId)) {
+    throw new ForbiddenError();
   }
   return account;
 }
 
-/** Lists every account belonging to a user, so a signed-in user can see their own. */
-async function getAccountsByUser(userId: number): Promise<Account[]> {
+async function createAccount(
+  userId: ObjectId,
+  accountType: AccountType,
+): Promise<WithId<Account>> {
   const user = await userRepository.findById(userId);
   if (!user) {
-    throw new Error('User not found');
+    throw new NotFoundError('User not found');
   }
+  return accountRepository.create(userId, accountType);
+}
+
+async function getAccountsForUser(
+  userId: ObjectId,
+): Promise<WithId<Account>[]> {
   return accountRepository.findByUserId(userId);
 }
 
-async function deposit(accountId: number, amountCents: number): Promise<Account> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Deposit amount_cents must be a positive integer');
-  }
-  const account = await getAccount(accountId);
-  const updatedAccount: Account = { ...account, balance_cents: account.balance_cents + amountCents };
-  await accountRepository.update(updatedAccount);
-  await transactionRepository.create(accountId, 'DEPOSIT', amountCents);
-  return updatedAccount;
+async function getAccount(
+  accountId: ObjectId,
+  userId: ObjectId,
+): Promise<WithId<Account>> {
+  return requireOwnedAccount(accountId, userId);
 }
 
-async function withdraw(accountId: number, amountCents: number): Promise<Account> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Withdrawal amount_cents must be a positive integer');
+async function deposit(
+  accountId: ObjectId,
+  userId: ObjectId,
+  amountCents: number,
+  idempotencyKey: string,
+): Promise<WithId<Account>> {
+  validateAmountCents(amountCents);
+  validateIdempotencyKey(idempotencyKey);
+
+  try {
+    return await runInTransaction(async (session) => {
+      await requireOwnedAccount(accountId, userId, session);
+      const updated = await accountRepository.adjustBalance(
+        accountId,
+        amountCents,
+        session,
+      );
+      if (!updated) {
+        throw new NotFoundError('Account not found');
+      }
+      await transactionRepository.create(
+        accountId,
+        'DEPOSIT',
+        amountCents,
+        null,
+        session,
+        idempotencyKey,
+      );
+      return updated;
+    });
+  } catch (error) {
+    return mapIdempotencyConflict(error);
   }
-  const account = await getAccount(accountId);
-  if (account.balance_cents < amountCents) {
-    throw new Error('Insufficient funds');
-  }
-  const updatedAccount: Account = { ...account, balance_cents: account.balance_cents - amountCents };
-  await accountRepository.update(updatedAccount);
-  await transactionRepository.create(accountId, 'WITHDRAWAL', amountCents);
-  return updatedAccount;
 }
 
-export interface TransferRecipient {
-  account_id: number;
-  owner_name: string;
+async function withdraw(
+  accountId: ObjectId,
+  userId: ObjectId,
+  amountCents: number,
+  idempotencyKey: string,
+): Promise<WithId<Account>> {
+  validateAmountCents(amountCents);
+  validateIdempotencyKey(idempotencyKey);
+
+  try {
+    return await runInTransaction(async (session) => {
+      await requireOwnedAccount(accountId, userId, session);
+      const updated = await accountRepository.adjustBalance(
+        accountId,
+        -amountCents,
+        session,
+      );
+      if (!updated) {
+        throw new ConflictError('Insufficient funds');
+      }
+      await transactionRepository.create(
+        accountId,
+        'WITHDRAWAL',
+        amountCents,
+        null,
+        session,
+        idempotencyKey,
+      );
+      return updated;
+    });
+  } catch (error) {
+    return mapIdempotencyConflict(error);
+  }
 }
 
 export interface TransferResult {
-  from: Account;
-  to: TransferRecipient;
-  amount_cents: number;
+  from: WithId<Account>;
+  to: WithId<Account>;
 }
 
-/**
- * Resolves an account ID to the minimum a sender needs in order to confirm a
- * recipient before sending: the ID they typed, and the owner's name.
- *
- * Deliberately not {@link getAccount} — the looked-up account usually belongs
- * to someone else, so the balance, the owner's email and the internal user ID
- * must not cross the wire. Requiring an exact ID match also means this cannot
- * be used to enumerate accounts by guessing at names.
- */
-async function getRecipient(accountId: number): Promise<TransferRecipient> {
-  const account = await getAccount(accountId);
-  const owner = await userRepository.findById(account.user_id);
-  if (!owner) {
-    throw new Error('Destination account has no owner');
-  }
-  return { account_id: account.account_id, owner_name: owner.name };
-}
-
-/**
- * Moves funds between two accounts of any type (CHECKING or SAVINGS). The
- * destination may belong to a different user — the account ID alone identifies
- * it, and no relationship between the two owners is required.
- *
- * Every check runs before either balance is written, so a rejected transfer
- * leaves both accounts untouched rather than debiting without crediting.
- * The movement is recorded as a pair of transactions — TRANSFER_OUT on the
- * source and TRANSFER_IN on the destination — each pointing at the other account.
- */
-async function transfer(fromAccountId: number, toAccountId: number, amountCents: number): Promise<TransferResult> {
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    throw new Error('Transfer amount_cents must be a positive integer');
-  }
-  if (fromAccountId === toAccountId) {
-    throw new Error('Cannot transfer to the same account');
-  }
-  const from = await getAccount(fromAccountId);
-  const to = await getAccount(toAccountId);
-  if (from.balance_cents < amountCents) {
-    throw new Error('Insufficient funds');
+async function transfer(
+  fromAccountId: ObjectId,
+  userId: ObjectId,
+  toAccountId: ObjectId,
+  amountCents: number,
+  idempotencyKey: string,
+): Promise<TransferResult> {
+  validateAmountCents(amountCents);
+  validateIdempotencyKey(idempotencyKey);
+  if (fromAccountId.equals(toAccountId)) {
+    throw new BadRequestError('Cannot transfer to the same account');
   }
 
-  const recipient = await userRepository.findById(to.user_id);
-  if (!recipient) {
-    throw new Error('Destination account has no owner');
-  }
-
-  const updatedFrom: Account = { ...from, balance_cents: from.balance_cents - amountCents };
-  const updatedTo: Account = { ...to, balance_cents: to.balance_cents + amountCents };
-
-  await accountRepository.update(updatedFrom);
   try {
-    await accountRepository.update(updatedTo);
-  } catch (err) {
-    // The debit succeeded but the credit did not, so the money currently exists
-    // nowhere. Put it back. Without a multi-document transaction this
-    // compensating write is the strongest guarantee available.
-    await accountRepository.update(from);
-    throw new Error('Transfer failed and was rolled back; no funds were moved');
+    return await runInTransaction(async (session) => {
+      await requireOwnedAccount(fromAccountId, userId, session);
+      const destination = await accountRepository.findById(toAccountId, session);
+      if (!destination) {
+        throw new NotFoundError('Destination account not found');
+      }
+      const updatedFrom = await accountRepository.adjustBalance(
+        fromAccountId,
+        -amountCents,
+        session,
+      );
+      if (!updatedFrom) {
+        throw new ConflictError('Insufficient funds');
+      }
+      const updatedTo = await accountRepository.adjustBalance(
+        toAccountId,
+        amountCents,
+        session,
+      );
+      if (!updatedTo) {
+        throw new NotFoundError('Destination account not found');
+      }
+
+      await transactionRepository.create(
+        fromAccountId,
+        'TRANSFER_OUT',
+        amountCents,
+        toAccountId,
+        session,
+        idempotencyKey,
+      );
+      await transactionRepository.create(
+        toAccountId,
+        'TRANSFER_IN',
+        amountCents,
+        fromAccountId,
+        session,
+      );
+
+      return { from: updatedFrom, to: updatedTo };
+    });
+  } catch (error) {
+    return mapIdempotencyConflict(error);
   }
-
-  await transactionRepository.create(fromAccountId, 'TRANSFER_OUT', amountCents, toAccountId);
-  await transactionRepository.create(toAccountId, 'TRANSFER_IN', amountCents, fromAccountId);
-
-  return {
-    from: updatedFrom,
-    to: { account_id: to.account_id, owner_name: recipient.name },
-    amount_cents: amountCents,
-  };
 }
 
-async function getTransactions(accountId: number): Promise<Transaction[]> {
-  await getAccount(accountId);
+async function getTransactions(
+  accountId: ObjectId,
+  userId: ObjectId,
+): Promise<WithId<Transaction>[]> {
+  await requireOwnedAccount(accountId, userId);
   return transactionRepository.findByAccountId(accountId);
 }
 
-/**
- * Deletes an account. The balance must be zero first, mirroring how a real
- * bank requires an account to be emptied before it can be closed.
- */
-async function deleteAccount(accountId: number): Promise<void> {
-  const account = await getAccount(accountId);
-  if (account.balance_cents !== 0) {
-    throw new Error('Cannot delete an account with a non-zero balance');
-  }
-  await transactionRepository.deleteByAccountId(accountId);
-  await accountRepository.deleteById(accountId);
+async function deleteAccount(
+  accountId: ObjectId,
+  userId: ObjectId,
+): Promise<void> {
+  await runInTransaction(async (session) => {
+    const account = await requireOwnedAccount(accountId, userId, session);
+    if (account.balance_cents !== 0) {
+      throw new ConflictError(
+        'Cannot delete an account with a non-zero balance',
+      );
+    }
+    await transactionRepository.deleteByAccountId(accountId, session);
+    const deleted = await accountRepository.deleteById(accountId, session);
+    if (!deleted) {
+      throw new NotFoundError('Account not found');
+    }
+  });
 }
 
-async function deleteTransaction(accountId: number, txnId: number): Promise<void> {
-  await getAccount(accountId);
-  const txn = await transactionRepository.findById(txnId);
-  if (!txn || txn.account_id !== accountId) {
-    throw new Error('Transaction not found');
+async function listAllAccounts(): Promise<WithId<Account>[]> {
+  return accountRepository.findAll();
+}
+
+async function getAccountAsAdmin(
+  accountId: ObjectId,
+): Promise<WithId<Account>> {
+  const account = await accountRepository.findById(accountId);
+  if (!account) {
+    throw new NotFoundError('Account not found');
   }
-  await transactionRepository.deleteById(txnId);
+  return account;
+}
+
+async function getTransactionsAsAdmin(
+  accountId: ObjectId,
+): Promise<WithId<Transaction>[]> {
+  await getAccountAsAdmin(accountId);
+  return transactionRepository.findByAccountId(accountId);
+}
+
+async function deleteTransaction(
+  accountId: ObjectId,
+  userId: ObjectId,
+  transactionId: ObjectId,
+): Promise<void> {
+  await runInTransaction(async (session) => {
+    await requireOwnedAccount(accountId, userId, session);
+    const transaction = await transactionRepository.findById(
+      transactionId,
+      session,
+    );
+    if (!transaction || !transaction.account_id.equals(accountId)) {
+      throw new NotFoundError('Transaction not found');
+    }
+    const deleted = await transactionRepository.deleteById(
+      transactionId,
+      session,
+    );
+    if (!deleted) {
+      throw new NotFoundError('Transaction not found');
+    }
+  });
 }
 
 export default {
   createAccount,
+  getAccountsForUser,
   getAccount,
-  getAccountsByUser,
-  getRecipient,
   deposit,
   withdraw,
   transfer,
   getTransactions,
   deleteAccount,
   deleteTransaction,
+  listAllAccounts,
+  getAccountAsAdmin,
+  getTransactionsAsAdmin,
 };

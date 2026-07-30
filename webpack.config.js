@@ -4,7 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 dotenv.config();
 
-const apiPort = process.env.PORT || '3000';
+const apiPort = process.env.PORT || 3000;
 
 module.exports = {
   mode: 'development',

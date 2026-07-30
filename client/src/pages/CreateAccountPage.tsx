@@ -44,7 +44,7 @@ export default function CreateAccountPage({ user, onLogout }: CreateAccountPageP
 		setBusy(true);
 
 		try {
-			const account = await api.createAccount(user.user_id, accountType);
+			const account = await api.createAccount(accountType);
 			navigate(`/accounts/${account.account_id}`, { replace: true });
 		} catch (err) {
 			setError((err as Error).message);

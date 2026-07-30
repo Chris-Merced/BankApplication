@@ -1,10 +1,13 @@
+import { Box, Container } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router';
-import { useState } from 'react';
 import * as api from './api';
 import type { Account, PublicUser } from './api';
+import LoadingState from './components/LoadingState';
+import AccountDetailsPage from './pages/AccountDetailsPage';
+import AdminPage from './pages/AdminPage';
 import AuthPage from './pages/AuthPage';
 import CreateAccountPage from './pages/CreateAccountPage';
-import AccountDetailsPage from './pages/AccountDetailsPage';
 import DepositPage from './pages/DepositPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
@@ -15,7 +18,28 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<PublicUser | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(api.hasToken());
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    function expireSession() {
+      handleLogout();
+    }
+
+    window.addEventListener(api.AUTH_EXPIRED_EVENT, expireSession);
+
+    if (api.hasToken()) {
+      api
+        .getCurrentUser()
+        .then(handleAuthenticated)
+        .catch(() => api.logout())
+        .finally(() => setRestoringSession(false));
+    }
+
+    return () => {
+      window.removeEventListener(api.AUTH_EXPIRED_EVENT, expireSession);
+    };
+  }, []);
 
   async function handleAuthenticated(user: PublicUser): Promise<void> {
     setCurrentUser(user);
@@ -23,7 +47,7 @@ export default function App() {
     setError('');
 
     try {
-      setAccounts(await api.getAccountsForUser(user.user_id));
+      setAccounts(await api.getAccounts());
     } catch (err) {
       setAccounts([]);
       setError((err as Error).message);
@@ -32,19 +56,16 @@ export default function App() {
     }
   }
 
-  /** Re-reads balances after something moves money, so every page sees the change. */
   async function refreshAccounts(): Promise<void> {
-    if (!currentUser) {
-      return;
-    }
     try {
-      setAccounts(await api.getAccountsForUser(currentUser.user_id));
+      setAccounts(await api.getAccounts());
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
   function handleLogout() {
+    api.logout();
     setCurrentUser(null);
     setAccounts([]);
     setError('');
@@ -53,6 +74,16 @@ export default function App() {
   function logoutAndNavigate() {
     handleLogout();
     navigate('/auth', { replace: true });
+  }
+
+  if (restoringSession) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <Container maxWidth="sm" sx={{ py: 8 }}>
+          <LoadingState message="Restoring your session…" />
+        </Container>
+      </Box>
+    );
   }
 
   if (!currentUser) {
@@ -75,8 +106,18 @@ export default function App() {
             accounts={accounts}
             loading={accountsLoading}
             error={error}
-            onLogout={handleLogout}
+            onLogout={logoutAndNavigate}
           />
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          currentUser.role === 'admin' ? (
+            <AdminPage user={currentUser} onLogout={logoutAndNavigate} />
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
       <Route

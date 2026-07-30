@@ -1,4 +1,5 @@
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
+import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import {
   AppBar,
@@ -8,6 +9,7 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material';
+import { Link } from 'react-router';
 import type { PublicUser } from '../api';
 
 interface AppHeaderProps {
@@ -25,14 +27,15 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
     >
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ minHeight: { xs: 64, sm: 72 } }}>
-          <AccountBalanceRoundedIcon color="primary" sx={{ mr: 1.25 }} />
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}
+          <Button
+            component={Link}
+            to="/"
+            color="inherit"
+            startIcon={<AccountBalanceRoundedIcon color="primary" />}
+            sx={{ px: 0.5, fontSize: '1.25rem', fontWeight: 800 }}
           >
             Simple Bank
-          </Typography>
+          </Button>
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: { xs: 'none', sm: 'block' }, mr: 2, textAlign: 'right' }}>
             <Typography variant="body2" sx={{ fontWeight: 700 }}>
@@ -42,6 +45,17 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
               {user.email}
             </Typography>
           </Box>
+          {user.role === 'admin' && (
+            <Button
+              component={Link}
+              to="/admin"
+              color="inherit"
+              startIcon={<AdminPanelSettingsRoundedIcon />}
+              sx={{ mr: 1 }}
+            >
+              Admin
+            </Button>
+          )}
           <Button
             color="inherit"
             startIcon={<LogoutRoundedIcon />}

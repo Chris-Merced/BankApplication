@@ -26,6 +26,7 @@ import AppHeader from '../components/AppHeader';
 import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { isObjectId } from '../utils/objectId';
 
 interface AccountDetailsPageProps {
 	user: PublicUser;
@@ -46,8 +47,8 @@ function formatDate(dateValue: string): string {
 	}).format(new Date(dateValue));
 }
 
-function maskAccountId(accountId: number, reveal = false): string {
-	const digits = String(accountId);
+function maskAccountId(accountId: string, reveal = false): string {
+	const digits = accountId;
 
 	if (reveal || digits.length <= 2) {
 		return digits;
@@ -59,7 +60,7 @@ function maskAccountId(accountId: number, reveal = false): string {
 
 export default function AccountDetailsPage({ user, onLogout }: AccountDetailsPageProps) {
 	const { accountId: accountIdParam } = useParams();
-	const accountId = Number(accountIdParam);
+	const accountId = accountIdParam;
 
 	useDocumentTitle('Account Details');
 
@@ -81,7 +82,7 @@ export default function AccountDetailsPage({ user, onLogout }: AccountDetailsPag
 		let active = true;
 
 		async function loadAccount() {
-			if (!Number.isFinite(accountId)) {
+			if (!isObjectId(accountId)) {
 				setError('Invalid account ID.');
 				setLoading(false);
 				return;
