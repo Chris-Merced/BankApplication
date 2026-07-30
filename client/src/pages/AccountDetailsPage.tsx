@@ -26,6 +26,7 @@ import AppHeader from '../components/AppHeader';
 import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
+import { formatDateTime } from '../utils/date';
 import { isObjectId } from '../utils/objectId';
 
 interface AccountDetailsPageProps {
@@ -38,13 +39,6 @@ function formatCurrency(amountCents: number): string {
 		style: 'currency',
 		currency: 'USD',
 	}).format(amountCents / 100);
-}
-
-function formatDate(dateValue: string): string {
-	return new Intl.DateTimeFormat('en-US', {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(new Date(dateValue));
 }
 
 function maskAccountId(accountId: string, reveal = false): string {
@@ -189,7 +183,7 @@ export default function AccountDetailsPage({ user, onLogout }: AccountDetailsPag
 										</Typography>
 										<Typography sx={{ maxWidth: 640, opacity: 0.88, fontSize: '1.05rem' }}>
 											{user.name} opened a {accountTypeLabel.toLowerCase()} account on{' '}
-											{formatDate(account.created_at)}.
+											{formatDateTime(account.created_at)}.
 										</Typography>
 									</Box>
 
@@ -272,7 +266,7 @@ export default function AccountDetailsPage({ user, onLogout }: AccountDetailsPag
 										<Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
 											<Typography color="text.secondary">Created</Typography>
 											<Typography sx={{ fontWeight: 700, textAlign: 'right' }}>
-												{formatDate(account.created_at)}
+												{formatDateTime(account.created_at)}
 											</Typography>
 										</Box>
 									</Stack>

@@ -26,9 +26,14 @@ import { isObjectId } from '../utils/objectId';
 interface DepositPageProps {
 	user: PublicUser;
 	onLogout: () => void;
+	onAccountUpdated: (account: Account) => void;
 }
 
-export default function DepositPage({ user, onLogout }: DepositPageProps) {
+export default function DepositPage({
+	user,
+	onLogout,
+	onAccountUpdated,
+}: DepositPageProps) {
 	const { accountId: accountIdParam } = useParams();
 	const accountId = accountIdParam;
 	const navigate = useNavigate();
@@ -109,7 +114,8 @@ export default function DepositPage({ user, onLogout }: DepositPageProps) {
 		setSubmitting(true);
 
 		try {
-			await api.deposit(account.account_id, amountCents);
+			const updatedAccount = await api.deposit(account.account_id, amountCents);
+			onAccountUpdated(updatedAccount);
 			navigate(`/accounts/${account.account_id}`, { replace: true });
 		} catch (err) {
 			setError((err as Error).message);

@@ -68,6 +68,14 @@ export default function App() {
     setAccounts((currentAccounts) => [...currentAccounts, account]);
   }
 
+  function handleAccountUpdated(account: Account) {
+    setAccounts((currentAccounts) =>
+      currentAccounts.map((currentAccount) =>
+        currentAccount.account_id === account.account_id ? account : currentAccount,
+      ),
+    );
+  }
+
   function handleLogout() {
     api.logout();
     setCurrentUser(null);
@@ -170,6 +178,7 @@ export default function App() {
           <DepositPage
             user={currentUser}
             onLogout={logoutAndNavigate}
+            onAccountUpdated={handleAccountUpdated}
           />
         }
       />
