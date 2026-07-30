@@ -48,24 +48,24 @@
 
 ### 7.4 Deposit — `/accounts/:accountId/deposit`
 
-- [ ] Show the selected account and current balance.
-- [ ] Accept a positive dollar amount and convert it to cents.
-- [ ] Show the projected balance.
-- [ ] Submit through the deposit API and return to Account Details.
+- [x] Show the selected account and current balance.
+- [x] Accept a positive dollar amount and convert it to cents.
+- [x] Show the projected balance.
+- [x] Submit through the deposit API and return to Account Details.
 
 ### 7.5 Withdraw — `/accounts/:accountId/withdraw`
 
-- [ ] Show the selected account and available balance.
-- [ ] Accept a positive dollar amount and convert it to cents.
-- [ ] Warn when the amount exceeds the displayed balance.
-- [ ] Submit through the withdrawal API and return to Account Details.
+- [x] Show the selected account and available balance.
+- [x] Accept a positive dollar amount and convert it to cents.
+- [x] Warn when the amount exceeds the displayed balance.
+- [x] Submit through the withdrawal API and return to Account Details.
 
 ### 7.6 Transaction History — `/accounts/:accountId/transactions`
 
-- [ ] Display transaction ID, type, amount, and date in a responsive table.
-- [ ] Use distinct deposit and withdrawal chips and signed currency amounts.
-- [ ] Add loading, error, and empty states.
-- [ ] Provide navigation back to Account Details.
+- [x] Display transaction ID, type, amount, and date in a responsive table.
+- [x] Use distinct deposit and withdrawal chips and signed currency amounts.
+- [x] Add loading, error, and empty states.
+- [x] Provide navigation back to Account Details.
 
 ### 7.7 Search Accounts — `/accounts/search`
 
@@ -90,6 +90,6 @@
 - [ ] Verify protected-route redirects and logout.
 - [ ] Verify zero-, one-, and multiple-account Home states.
 - [ ] Verify account creation, deposits, withdrawals, and transaction history.
-- [ ] Run the API and client production builds.
+- [x] Run the API and client production builds.
 - [ ] Perform a final desktop and mobile-width UI review.
 - [ ] Remove this temporary file and its README reference when the plan is complete.
