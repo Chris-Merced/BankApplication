@@ -71,7 +71,7 @@
 
 - [x] Add a search bar for looking up a specific account ID.
 - [x] Add checkboxes to filter by account type: Checking and Savings.
-- [x] Add a sort dropdown with Transaction Count, Transactions Amount, Gross, Date Created, and Date Updated.
+- [x] Add a sort dropdown with Transaction Count, Transactions Amount, Date Created, and Date Updated.
 - [x] Add ascending and descending sort direction control.
 - [x] Add pagination for large search result sets.
 

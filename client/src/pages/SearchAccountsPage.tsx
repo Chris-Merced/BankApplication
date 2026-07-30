@@ -49,7 +49,6 @@ const RESULT_PAGE_SIZE = 6;
 type SortKey =
   | 'transactionCount'
   | 'transactionsAmount'
-  | 'gross'
   | 'createdAt'
   | 'updatedAt';
 
@@ -58,7 +57,6 @@ type SortDirection = 'asc' | 'desc';
 const SORT_OPTIONS: { value: SortKey; label: string; hint: string }[] = [
   { value: 'transactionCount', label: 'Transaction Count', hint: 'How many transactions the account has.' },
   { value: 'transactionsAmount', label: 'Transactions Amount', hint: 'Net movement: money in minus money out.' },
-  { value: 'gross', label: 'Gross', hint: 'Total moved in either direction.' },
   { value: 'createdAt', label: 'Date Created', hint: 'When the account was opened.' },
   { value: 'updatedAt', label: 'Date Updated', hint: 'When the account last had activity.' },
 ];
@@ -75,8 +73,6 @@ interface AccountStats {
   transactionCount: number;
   /** Net movement — deposits and transfers in, less withdrawals and transfers out. */
   transactionsAmountCents: number;
-  /** Every transaction added together regardless of direction. */
-  grossCents: number;
   /** Latest activity. Accounts have no updated_at, so this is the newest transaction. */
   updatedAt: string;
 }
@@ -85,7 +81,6 @@ function emptyStats(account: Account): AccountStats {
   return {
     transactionCount: 0,
     transactionsAmountCents: 0,
-    grossCents: 0,
     updatedAt: account.created_at,
   };
 }
@@ -98,7 +93,6 @@ function computeStats(account: Account, transactions: Transaction[]): AccountSta
     stats.transactionsAmountCents += INCOMING[transaction.txn_type]
       ? transaction.amount_cents
       : -transaction.amount_cents;
-    stats.grossCents += transaction.amount_cents;
     // ISO-8601 strings in a fixed format sort correctly as plain text
     if (transaction.created_at > stats.updatedAt) {
       stats.updatedAt = transaction.created_at;
@@ -125,7 +119,7 @@ export default function SearchAccountsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Sorting by transaction count, amount, gross or last activity needs the
+  // Sorting by transaction count, amount or last activity needs the
   // transactions themselves — an account only carries its balance and open date.
   useEffect(() => {
     let active = true;
@@ -193,8 +187,6 @@ export default function SearchAccountsPage({
             statsFor(first).transactionsAmountCents -
             statsFor(second).transactionsAmountCents
           );
-        case 'gross':
-          return statsFor(first).grossCents - statsFor(second).grossCents;
         case 'updatedAt':
           return statsFor(first).updatedAt.localeCompare(statsFor(second).updatedAt);
         case 'createdAt':
@@ -428,10 +420,6 @@ export default function SearchAccountsPage({
                         <MetricRow
                           label="Net amount"
                           value={`${accountStats.transactionsAmountCents < 0 ? '−' : ''}${formatCurrency(Math.abs(accountStats.transactionsAmountCents))}`}
-                        />
-                        <MetricRow
-                          label="Gross"
-                          value={formatCurrency(accountStats.grossCents)}
                         />
                         <MetricRow
                           label="Created"
