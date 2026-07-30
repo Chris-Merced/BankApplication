@@ -66,6 +66,7 @@
 - [x] Use distinct deposit and withdrawal chips and signed currency amounts.
 - [x] Add loading, error, and empty states.
 - [x] Provide navigation back to Account Details.
+- [x] Add shared client-side pagination for user and admin transaction history.
 
 ### 7.7 Search Accounts — `/accounts/search`
 
@@ -88,6 +89,9 @@
 - [x] Present accounts in a responsive Card and Table with formatted balances, dates, and ObjectIds.
 - [x] Show a selected account's read-only transaction history using the same type Chips, signed amounts, and date formatting as 7.6.
 - [x] Add loading, error, and empty states for users, accounts, and selected transaction history.
+- [x] Add independent client-side pagination to the users and accounts tables.
+- [x] Replace the accounts table's Owner ID column with an Owner column showing the user's name and ObjectId.
+- [x] Reset or clamp table pages when row counts change after loading or user deletion.
 - [ ] Verify tables scroll at mobile widths and action controls remain keyboard accessible.
 
 ## Shared UX
@@ -105,6 +109,7 @@
 - [ ] Verify protected-route redirects and logout.
 - [ ] Verify non-admin redirection and admin-only navigation.
 - [ ] Verify admin role changes, self-protection, deletion confirmation, and account history.
+- [ ] Verify table page boundaries, page-size changes, and page correction after deletion.
 - [ ] Verify zero-, one-, and multiple-account Home states.
 - [ ] Verify account creation, deposits, withdrawals, and transaction history.
 - [x] Run the API and client production builds.
