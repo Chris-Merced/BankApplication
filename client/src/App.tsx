@@ -100,6 +100,16 @@ export default function App() {
         }
       />
       <Route
+        path="/accounts/search"
+        element={
+          <PlannedPage
+            user={currentUser}
+            title="Search Accounts"
+            onLogout={logoutAndNavigate}
+          />
+        }
+      />
+      <Route
         path="/accounts/:accountId"
         element={
           <AccountDetailsPage

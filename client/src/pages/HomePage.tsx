@@ -12,8 +12,10 @@ import {
   CardContent,
   Chip,
   Container,
+  Pagination,
   Typography,
 } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { Account, PublicUser } from '../api';
 import AppHeader from '../components/AppHeader';
@@ -30,6 +32,8 @@ interface HomePageProps {
   error: string;
   onLogout: () => void;
 }
+
+const ACCOUNT_PAGE_SIZE = 6;
 
 function maskAccountId(accountId: number): string {
   const digits = String(accountId);
@@ -52,11 +56,17 @@ export default function HomePage({
   useDocumentTitle('Home');
 
   const navigate = useNavigate();
+  const [accountPage, setAccountPage] = useState(1);
   const hasAccounts = accounts.length > 0;
-  const firstAccount = accounts[0];
-  const viewAccountTarget = firstAccount
-    ? `/accounts/${firstAccount.account_id}`
-    : '/accounts/new';
+  const totalAccountPages = Math.max(1, Math.ceil(accounts.length / ACCOUNT_PAGE_SIZE));
+  const visibleAccounts = accounts.slice(
+    (accountPage - 1) * ACCOUNT_PAGE_SIZE,
+    accountPage * ACCOUNT_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setAccountPage((currentPage) => Math.min(currentPage, totalAccountPages));
+  }, [totalAccountPages]);
 
   function logout() {
     onLogout();
@@ -149,12 +159,12 @@ export default function HomePage({
             <CardActions sx={{ px: 3, pb: 3 }}>
               <Button
                 component={Link}
-                to={viewAccountTarget}
+                to="/accounts/search"
                 variant="outlined"
                 color="secondary"
                 endIcon={<ArrowForwardRoundedIcon />}
               >
-                {accounts.length > 0 ? 'View Account' : 'Get Started'}
+                Search Accounts
               </Button>
             </CardActions>
           </Card>
@@ -216,18 +226,19 @@ export default function HomePage({
             }
           />
         ) : (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                lg: 'repeat(3, minmax(0, 1fr))',
-              },
-              gap: 2.5,
-            }}
-          >
-            {accounts.map((account) => (
+          <Box sx={{ display: 'grid', gap: 3 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg: 'repeat(3, minmax(0, 1fr))',
+                },
+                gap: 2.5,
+              }}
+            >
+              {visibleAccounts.map((account) => (
               <Card key={account.account_id}>
                 <CardContent sx={{ p: 3 }}>
                   <Box
@@ -265,7 +276,19 @@ export default function HomePage({
                   </Button>
                 </CardActions>
               </Card>
-            ))}
+              ))}
+            </Box>
+
+            {accounts.length > ACCOUNT_PAGE_SIZE && (
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <Pagination
+                  count={totalAccountPages}
+                  page={accountPage}
+                  onChange={(_event, page) => setAccountPage(page)}
+                  color="primary"
+                />
+              </Box>
+            )}
           </Box>
         )}
       </Container>
