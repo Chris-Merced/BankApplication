@@ -147,7 +147,10 @@ export default function TransactionHistoryPage({
               />
             ) : (
               <Card>
-                <TransactionTable transactions={transactions} />
+                <TransactionTable
+                  transactions={transactions}
+                  resetKey={account.account_id}
+                />
               </Card>
             )}
           </Box>
