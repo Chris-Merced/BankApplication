@@ -12,6 +12,7 @@ import DepositPage from './pages/DepositPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
 import TransferPage from './pages/TransferPage';
+import WithdrawPage from './pages/WithdrawPage';
 
 export default function App() {
   const navigate = useNavigate();
@@ -185,10 +186,10 @@ export default function App() {
       <Route
         path="/accounts/:accountId/withdraw"
         element={
-          <PlannedPage
+          <WithdrawPage
             user={currentUser}
-            title="Withdraw"
             onLogout={logoutAndNavigate}
+            onAccountUpdated={handleAccountUpdated}
           />
         }
       />
