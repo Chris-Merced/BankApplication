@@ -5,6 +5,7 @@ import type { Account, PublicUser } from './api';
 import AuthPage from './pages/AuthPage';
 import CreateAccountPage from './pages/CreateAccountPage';
 import AccountDetailsPage from './pages/AccountDetailsPage';
+import DepositPage from './pages/DepositPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
 
@@ -86,9 +87,8 @@ export default function App() {
       <Route
         path="/accounts/:accountId/deposit"
         element={
-          <PlannedPage
+          <DepositPage
             user={currentUser}
-            title="Deposit"
             onLogout={logoutAndNavigate}
           />
         }

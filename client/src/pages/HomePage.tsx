@@ -138,12 +138,12 @@ export default function HomePage({
             <CardContent sx={{ p: 3 }}>
               <VisibilityRoundedIcon color="secondary" sx={{ fontSize: 34, mb: 1.5 }} />
               <Typography variant="h5" component="h3" sx={{ fontWeight: 750 }}>
-                View Account
+                Search Accounts
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75 }}>
                 {accounts.length > 0
                   ? `Review your ${accounts.length === 1 ? 'account' : `${accounts.length} accounts`} and recent activity.`
-                  : 'Create your first account to begin managing a balance.'}
+                  : 'Search your existing accounts with filter options.'}
               </Typography>
             </CardContent>
             <CardActions sx={{ px: 3, pb: 3 }}>
