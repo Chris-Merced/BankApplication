@@ -26,6 +26,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Tooltip,
   Typography,
@@ -89,6 +90,10 @@ export default function Admin({ currentUserId }: AdminProps) {
   const [error, setError] = useState('');
   const [transactionsError, setTransactionsError] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [usersPage, setUsersPage] = useState(0);
+  const [usersRowsPerPage, setUsersRowsPerPage] = useState(10);
+  const [accountsPage, setAccountsPage] = useState(0);
+  const [accountsRowsPerPage, setAccountsRowsPerPage] = useState(10);
 
   const administratorCount = users.filter((user) => user.role === 'admin').length;
   const totalBalanceCents = useMemo(
@@ -97,10 +102,40 @@ export default function Admin({ currentUserId }: AdminProps) {
   );
   const selectedAccount =
     accounts.find((account) => account.account_id === selectedAccountId) ?? null;
+  const usersById = useMemo(
+    () => new Map(users.map((user) => [user.user_id, user])),
+    [users],
+  );
+  const lastUsersPage = Math.max(
+    0,
+    Math.ceil(users.length / usersRowsPerPage) - 1,
+  );
+  const visibleUsersPage = Math.min(usersPage, lastUsersPage);
+  const lastAccountsPage = Math.max(
+    0,
+    Math.ceil(accounts.length / accountsRowsPerPage) - 1,
+  );
+  const visibleAccountsPage = Math.min(accountsPage, lastAccountsPage);
+  const visibleUsers = users.slice(
+    visibleUsersPage * usersRowsPerPage,
+    visibleUsersPage * usersRowsPerPage + usersRowsPerPage,
+  );
+  const visibleAccounts = accounts.slice(
+    visibleAccountsPage * accountsRowsPerPage,
+    visibleAccountsPage * accountsRowsPerPage + accountsRowsPerPage,
+  );
 
   useEffect(() => {
     void loadAll();
   }, []);
+
+  useEffect(() => {
+    setUsersPage((currentPage) => Math.min(currentPage, lastUsersPage));
+  }, [lastUsersPage]);
+
+  useEffect(() => {
+    setAccountsPage((currentPage) => Math.min(currentPage, lastAccountsPage));
+  }, [lastAccountsPage]);
 
   async function loadAll() {
     setLoading(true);
@@ -113,6 +148,8 @@ export default function Admin({ currentUserId }: AdminProps) {
       ]);
       setUsers(allUsers);
       setAccounts(allAccounts);
+      setUsersPage(0);
+      setAccountsPage(0);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -310,7 +347,7 @@ export default function Admin({ currentUserId }: AdminProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => {
+                visibleUsers.map((user) => {
                   const isSelf = user.user_id === currentUserId;
                   const roleActionKey = `role:${user.user_id}`;
                   const roleBusy = actionKey === roleActionKey;
@@ -404,6 +441,18 @@ export default function Admin({ currentUserId }: AdminProps) {
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          component="div"
+          count={users.length}
+          page={visibleUsersPage}
+          onPageChange={(_event, nextPage) => setUsersPage(nextPage)}
+          rowsPerPage={usersRowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setUsersRowsPerPage(Number(event.target.value));
+            setUsersPage(0);
+          }}
+          rowsPerPageOptions={[5, 10, 25]}
+        />
       </Card>
 
       <Card>
@@ -433,7 +482,7 @@ export default function Admin({ currentUserId }: AdminProps) {
             <TableHead>
               <TableRow>
                 <TableCell>Account ID</TableCell>
-                <TableCell>Owner ID</TableCell>
+                <TableCell>Owner</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell align="right">Balance</TableCell>
                 <TableCell>Created</TableCell>
@@ -448,17 +497,27 @@ export default function Admin({ currentUserId }: AdminProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                accounts.map((account) => {
+                visibleAccounts.map((account) => {
                   const viewing =
                     selectedAccountId === account.account_id && transactionsLoading;
+                  const owner = usersById.get(account.user_id);
 
                   return (
                     <TableRow key={account.account_id} hover>
                       <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
                         {account.account_id}
                       </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                        {account.user_id}
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 750 }}>
+                          {owner?.name ?? 'Unknown user'}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontFamily: 'monospace' }}
+                        >
+                          {account.user_id}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -500,6 +559,18 @@ export default function Admin({ currentUserId }: AdminProps) {
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          component="div"
+          count={accounts.length}
+          page={visibleAccountsPage}
+          onPageChange={(_event, nextPage) => setAccountsPage(nextPage)}
+          rowsPerPage={accountsRowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setAccountsRowsPerPage(Number(event.target.value));
+            setAccountsPage(0);
+          }}
+          rowsPerPageOptions={[5, 10, 25]}
+        />
       </Card>
 
       {selectedAccountId && (
@@ -562,6 +633,7 @@ export default function Admin({ currentUserId }: AdminProps) {
             <TransactionTable
               transactions={transactions}
               ariaLabel={`Transactions for account ${selectedAccountId}`}
+              resetKey={selectedAccountId}
             />
           )}
         </Card>
