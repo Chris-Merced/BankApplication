@@ -6,29 +6,18 @@ import {
   CardContent,
   Chip,
   Container,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import * as api from '../api';
-import type {
-  Account,
-  PublicUser,
-  Transaction,
-  TransactionType,
-} from '../api';
+import type { Account, PublicUser, Transaction } from '../api';
 import AppHeader from '../components/AppHeader';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
+import TransactionTable from '../components/TransactionTable';
 import useDocumentTitle from '../hooks/useDocumentTitle';
-import { formatDateTime } from '../utils/date';
 import { formatCurrency } from '../utils/money';
 import { isObjectId } from '../utils/objectId';
 
@@ -36,19 +25,6 @@ interface TransactionHistoryPageProps {
   user: PublicUser;
   onLogout: () => void;
 }
-
-interface TransactionDisplay {
-  label: string;
-  incoming: boolean;
-  color: 'success' | 'error' | 'primary' | 'warning';
-}
-
-const TRANSACTION_DISPLAY: Record<TransactionType, TransactionDisplay> = {
-  DEPOSIT: { label: 'Deposit', incoming: true, color: 'success' },
-  WITHDRAWAL: { label: 'Withdrawal', incoming: false, color: 'error' },
-  TRANSFER_IN: { label: 'Transfer In', incoming: true, color: 'primary' },
-  TRANSFER_OUT: { label: 'Transfer Out', incoming: false, color: 'warning' },
-};
 
 export default function TransactionHistoryPage({
   user,
@@ -171,68 +147,7 @@ export default function TransactionHistoryPage({
               />
             ) : (
               <Card>
-                <TableContainer sx={{ overflowX: 'auto' }}>
-                  <Table sx={{ minWidth: 760 }} aria-label="Transaction history">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Transaction ID</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell align="right">Amount</TableCell>
-                        <TableCell>Date</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {transactions.map((transaction) => {
-                        const display = TRANSACTION_DISPLAY[transaction.txn_type];
-
-                        return (
-                          <TableRow key={transaction.txn_id} hover>
-                            <TableCell
-                              sx={{
-                                fontFamily: 'monospace',
-                                fontSize: '0.8rem',
-                                overflowWrap: 'anywhere',
-                              }}
-                            >
-                              {transaction.txn_id}
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={display.label}
-                                color={display.color}
-                                variant={display.incoming ? 'filled' : 'outlined'}
-                                size="small"
-                              />
-                              {transaction.related_account_id && (
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ display: 'block', mt: 0.75 }}
-                                >
-                                  Related: {transaction.related_account_id}
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell
-                              align="right"
-                              sx={{
-                                fontWeight: 800,
-                                color: display.incoming ? 'success.main' : 'error.main',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {display.incoming ? '+' : '−'}
-                              {formatCurrency(transaction.amount_cents)}
-                            </TableCell>
-                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                              {formatDateTime(transaction.created_at)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <TransactionTable transactions={transactions} />
               </Card>
             )}
           </Box>
