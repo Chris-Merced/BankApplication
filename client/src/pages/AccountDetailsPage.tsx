@@ -27,18 +27,12 @@ import LoadingState from '../components/LoadingState';
 import PageHeader from '../components/PageHeader';
 import useDocumentTitle from '../hooks/useDocumentTitle';
 import { formatDateTime } from '../utils/date';
+import { formatCurrency } from '../utils/money';
 import { isObjectId } from '../utils/objectId';
 
 interface AccountDetailsPageProps {
 	user: PublicUser;
 	onLogout: () => void;
-}
-
-function formatCurrency(amountCents: number): string {
-	return new Intl.NumberFormat('en-US', {
-		style: 'currency',
-		currency: 'USD',
-	}).format(amountCents / 100);
 }
 
 function maskAccountId(accountId: string, reveal = false): string {
