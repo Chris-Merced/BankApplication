@@ -33,10 +33,10 @@
 
 ### 7.2 Create Account — `/accounts/new`
 
-- [ ] Display the signed-in user's name and email as read-only fields.
-- [ ] Provide a checking/savings account-type dropdown.
-- [ ] Create the account through the existing API.
-- [ ] Navigate to Account Details after success.
+- [x] Display the signed-in user's name and email as read-only fields.
+- [x] Provide a checking/savings account-type dropdown.
+- [x] Create the account through the existing API.
+- [x] Navigate to Account Details after success.
 
 ### 7.3 Account Details — `/accounts/:accountId`
 
