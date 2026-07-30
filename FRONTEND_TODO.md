@@ -26,7 +26,7 @@
 ### 7.1 Home — `/`
 
 - [x] Show the signed-in user's name.
-- [x] Provide Create Account and View Account actions.
+- [x] Provide Create Account and Search Account actions.
 - [x] Show responsive account summary cards.
 - [x] Handle users with zero, one, or multiple accounts.
 - [x] Provide logout from the application header.
@@ -40,9 +40,11 @@
 
 ### 7.3 Account Details — `/accounts/:accountId`
 
-- [ ] Display account ID, user name, account type, balance, and creation date.
-- [ ] Provide Deposit, Withdraw, and View Transactions actions.
-- [ ] Provide navigation back to Home.
+- [x] Display of account ID, user name, account type, balance, and creation date.
+- [x] Provide Deposit, Withdraw, and View Transactions actions.
+- [x] Provide navigation back to Home.
+- [x] Provide button to copy account ID to clipboard
+
 
 ### 7.4 Deposit — `/accounts/:accountId/deposit`
 
@@ -64,6 +66,14 @@
 - [ ] Use distinct deposit and withdrawal chips and signed currency amounts.
 - [ ] Add loading, error, and empty states.
 - [ ] Provide navigation back to Account Details.
+
+### 7.7 Search Accounts — `/accounts/search`
+
+- [ ] Add a search bar for looking up a specific account ID.
+- [ ] Add checkboxes to filter by account type: Checking and Savings.
+- [ ] Add a sort dropdown with Transaction Count, Transactions Amount, Gross, Date Created, and Date Updated.
+- [ ] Add ascending and descending sort direction control.
+- [ ] Add pagination for large search result sets.
 
 ## Shared UX
 
