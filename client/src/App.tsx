@@ -3,6 +3,7 @@ import { useState } from 'react';
 import * as api from './api';
 import type { Account, PublicUser } from './api';
 import AuthPage from './pages/AuthPage';
+import CreateAccountPage from './pages/CreateAccountPage';
 import HomePage from './pages/HomePage';
 import PlannedPage from './pages/PlannedPage';
 
@@ -66,9 +67,8 @@ export default function App() {
       <Route
         path="/accounts/new"
         element={
-          <PlannedPage
+          <CreateAccountPage
             user={currentUser}
-            title="Create Account"
             onLogout={logoutAndNavigate}
           />
         }
