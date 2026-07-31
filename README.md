@@ -107,31 +107,13 @@ backend deployments. After `npm run build`:
    link), and continues to serve `/api/*`, `/health`, `/health/live`,
    `/openapi.json`, and `/api-docs` as before.
 
-### AWS Elastic Beanstalk
-
-The repo includes a `Procfile` (`web: npm start`) and
-`.ebextensions/environment.config`, which sets `NPM_USE_PRODUCTION=false` so
-Elastic Beanstalk installs devDependencies (TypeScript, webpack) during
-deploy — required because the Node.js platform runs `npm run build`
-automatically when a `build` script is present in `package.json`.
-
-To deploy (run these yourself; they create/modify AWS resources):
-
-```bash
-npm install -g aws-elastic-beanstalk-cli   # or: pip install awsebcli
-eb init                                    # choose region, Node.js platform
-eb create                                  # creates the environment
-```
-
-Set the required environment variables on the environment (EB console, or
-`eb setenv`):
-
-```bash
-eb setenv MONGODB_URI="..." MONGODB_DB="bankapp_auth" JWT_SECRET="..."
-```
-
-Elastic Beanstalk sets `PORT` itself; the app already reads
-`process.env.PORT`. Redeploy after code changes with `eb deploy`.
+`server/app.ts` holds the Express app itself (routes and middleware).
+`server/index.ts` imports it and runs it as a long-lived process via
+`app.listen()` — used by `npm start` above. `server/lambda.ts` imports the
+same app and wraps it with `serverless-http` instead, for environments where
+a long-lived process isn't the deployment model (e.g. AWS Lambda behind API
+Gateway). Both entry points share the same routes, controllers, and services;
+only the "how does this get invoked" layer differs.
 
 ## Data model guide
 
