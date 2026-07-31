@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import path from 'path';
 import { Server } from 'http';
 import swaggerUi from 'swagger-ui-express';
 import accountRoutes from './routes/accountRoutes';
@@ -16,12 +17,13 @@ import { assertAuthConfigured } from './services/AuthService';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const clientDistPath = path.resolve(process.cwd(), 'client/dist');
 let server: Server | undefined;
 let shuttingDown = false;
 
 app.use(express.json());
 
-app.get('/', (_req, res) => {
+app.get('/api', (_req, res) => {
   res.json({ message: 'Bank Application API is running' });
 });
 
@@ -55,6 +57,16 @@ app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+app.use(express.static(clientDistPath));
+
+app.get(/^\/(?!api).*/, (_req, res) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'));
+});
 
 async function startServer(): Promise<void> {
   try {

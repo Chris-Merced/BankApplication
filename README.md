@@ -86,13 +86,52 @@ Or run both development servers:
 npm run dev:all
 ```
 
-Build the API and frontend:
+Build the API and frontend, then run the single production server (it serves
+the built React app and the API from the same Express process):
 
 ```bash
 npm run build
-npm run client:build
 npm start
 ```
+
+## Deployment
+
+In production there is a single Express process, not separate frontend and
+backend deployments. After `npm run build`:
+
+1. `tsc` compiles `server/` to `dist/server/`.
+2. `webpack --mode production` bundles `client/src/` into `client/dist/`.
+3. `npm start` runs `dist/server/index.js`, which serves `client/dist/` as
+   static assets, falls back to `client/dist/index.html` for any non-`/api`
+   GET request (so React Router's client-side routes work on refresh/deep
+   link), and continues to serve `/api/*`, `/health`, `/health/live`,
+   `/openapi.json`, and `/api-docs` as before.
+
+### AWS Elastic Beanstalk
+
+The repo includes a `Procfile` (`web: npm start`) and
+`.ebextensions/environment.config`, which sets `NPM_USE_PRODUCTION=false` so
+Elastic Beanstalk installs devDependencies (TypeScript, webpack) during
+deploy — required because the Node.js platform runs `npm run build`
+automatically when a `build` script is present in `package.json`.
+
+To deploy (run these yourself; they create/modify AWS resources):
+
+```bash
+npm install -g aws-elastic-beanstalk-cli   # or: pip install awsebcli
+eb init                                    # choose region, Node.js platform
+eb create                                  # creates the environment
+```
+
+Set the required environment variables on the environment (EB console, or
+`eb setenv`):
+
+```bash
+eb setenv MONGODB_URI="..." MONGODB_DB="bankapp_auth" JWT_SECRET="..."
+```
+
+Elastic Beanstalk sets `PORT` itself; the app already reads
+`process.env.PORT`. Redeploy after code changes with `eb deploy`.
 
 ## Data model guide
 
@@ -352,7 +391,8 @@ Public routes:
 
 | Method | Route | Description |
 |---|---|---|
-| GET | `/` | API status |
+| GET | `/` | React app (all non-API, non-asset paths fall back to it for client-side routing) |
+| GET | `/api` | API status |
 | GET | `/health` | Application and database readiness |
 | GET | `/health/live` | Process liveness |
 | POST | `/api/auth/register` | Register and receive a JWT |

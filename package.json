@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "Simple Express API",
   "main": "dist/server/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run client:build",
     "start": "node dist/server/index.js",
     "dev": "tsx watch server/index.ts",
     "client:dev": "webpack serve --open",
